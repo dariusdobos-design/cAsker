@@ -1,5 +1,13 @@
 import { supabase } from "./supabase";
-import { updateRequestStatus, upsertRequest, type Request } from "./requests";
+import {
+  clearRequestRescheduleRequested,
+  formatHistoryDateLabel,
+  setRequestRescheduleRequested,
+  toHistoryDateKey,
+  updateRequestStatus,
+  upsertRequest,
+  type Request,
+} from "./requests";
 
 export type AppointmentStatus = "pending" | "accepted" | "rejected";
 
@@ -12,14 +20,46 @@ export type Appointment = {
   appointment_time: string;
   status: AppointmentStatus;
   message?: string | null;
+  reschedule_requested_at?: string | null;
   created_at?: string;
 };
+
+export type AppointmentProposalKind = "initial" | "counter";
+
+export type AppointmentProposal = {
+  id: string;
+  request_id: string;
+  appointment_date: string;
+  appointment_time: string;
+  message?: string | null;
+  sent_at: string;
+  proposal_kind: AppointmentProposalKind;
+};
+
+const APPOINTMENT_PROPOSAL_SELECT_FIELDS =
+  "id, request_id, appointment_date, appointment_time, message, sent_at, proposal_kind";
+
+const APPOINTMENT_SELECT_FIELDS =
+  "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, message, reschedule_requested_at, created_at";
+
+const APPOINTMENT_SELECT_FIELDS_LEGACY =
+  "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, message, created_at";
+
+export function hasRescheduleRequest(appointment: Appointment | null | undefined) {
+  return Boolean(appointment?.reschedule_requested_at);
+}
+
+export async function requestCustomerReschedule(requestId: string) {
+  return setRequestRescheduleRequested(requestId);
+}
 
 export type RequestLike = {
   id: string;
   status: string;
   userName: string;
   vehicleName: string;
+  engine: string;
+  power: string;
   year: number;
   licensePlate: string;
 };
@@ -32,6 +72,30 @@ export function formatVehicleInfo(
 
 export function formatAppointmentLabel(appointment: Appointment) {
   return appointment.vehicle_info;
+}
+
+export function formatCalendarPowerLabel(power: string) {
+  const trimmed = power.trim();
+  if (!trimmed) return "";
+
+  const number = trimmed.replace(/\s*kW\s*/gi, "").trim();
+  if (!number) return trimmed;
+
+  return `${number} KW`;
+}
+
+export function formatCalendarAppointmentLabel(
+  appointment: Appointment,
+  request: Pick<RequestLike, "vehicleName" | "engine" | "power" | "year"> | null,
+) {
+  if (!request) return appointment.vehicle_info;
+
+  return [
+    request.vehicleName,
+    request.engine,
+    formatCalendarPowerLabel(request.power),
+    String(request.year),
+  ].join(", ");
 }
 
 export function appointmentDateTime(appointment: Appointment) {
@@ -68,6 +132,8 @@ export function filterAppointmentsForCalendar(
     return (
       matchedRequest !== null &&
       matchedRequest.status !== "completed" &&
+      matchedRequest.status !== "cancelled" &&
+      matchedRequest.status !== "expired" &&
       (matchedRequest.status === "inquiry" ||
         matchedRequest.status === "waiting" ||
         matchedRequest.status === "done")
@@ -107,12 +173,7 @@ export function buildCalendarAppointments(
 }
 
 export function formatAppointmentDisplayDate(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  return new Date(year, (month || 1) - 1, day || 1).toLocaleDateString("sk-SK", {
-    day: "numeric",
-    month: "numeric",
-    year: "numeric",
-  });
+  return formatHistoryDateLabel(date);
 }
 
 export function formatAppointmentDisplayTime(time: string) {
@@ -121,6 +182,117 @@ export function formatAppointmentDisplayTime(time: string) {
 
 export function formatAppointmentSchedule(appointment: Appointment) {
   return `${formatAppointmentDisplayDate(appointment.appointment_date)} · ${formatAppointmentDisplayTime(appointment.appointment_time)}`;
+}
+
+export function formatProposalSchedule(
+  proposal: Pick<AppointmentProposal, "appointment_date" | "appointment_time">,
+) {
+  return `${formatAppointmentDisplayDate(proposal.appointment_date)} · ${formatAppointmentDisplayTime(proposal.appointment_time)}`;
+}
+
+export function formatProposalSentAt(sentAt: string) {
+  const parsed = new Date(sentAt);
+  if (Number.isNaN(parsed.getTime())) return sentAt;
+
+  const datePart = formatHistoryDateLabel(toHistoryDateKey(sentAt));
+  const timePart = `${String(parsed.getHours()).padStart(2, "0")}:${String(parsed.getMinutes()).padStart(2, "0")}`;
+
+  return `${datePart}, ${timePart}`;
+}
+
+export function buildProposalMap(proposals: AppointmentProposal[]) {
+  const map = new Map<string, AppointmentProposal[]>();
+
+  for (const proposal of proposals) {
+    const current = map.get(proposal.request_id) ?? [];
+    current.push(proposal);
+    map.set(proposal.request_id, current);
+  }
+
+  for (const [requestId, items] of map) {
+    map.set(
+      requestId,
+      [...items].sort((left, right) => left.sent_at.localeCompare(right.sent_at)),
+    );
+  }
+
+  return map;
+}
+
+export function buildInquiryProposalTimeline(
+  proposals: AppointmentProposal[],
+  pendingAppointment: Appointment | null,
+): AppointmentProposal[] {
+  if (proposals.length > 0) return proposals;
+  if (!pendingAppointment) return [];
+
+  return [
+    {
+      id: `pending-${pendingAppointment.id}`,
+      request_id: pendingAppointment.request_id ?? "",
+      appointment_date: pendingAppointment.appointment_date,
+      appointment_time: pendingAppointment.appointment_time,
+      message: pendingAppointment.message,
+      sent_at: pendingAppointment.created_at ?? new Date().toISOString(),
+      proposal_kind: "initial",
+    },
+  ];
+}
+
+export async function fetchAppointmentProposals() {
+  const { data, error } = await supabase
+    .from("appointment_proposals")
+    .select(APPOINTMENT_PROPOSAL_SELECT_FIELDS)
+    .order("sent_at", { ascending: true });
+
+  if (error) {
+    if (error.code === "PGRST205" || error.code === "PGRST204") return [];
+    throw error;
+  }
+
+  return (data ?? []) as AppointmentProposal[];
+}
+
+async function recordAppointmentProposal(input: {
+  requestId: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  message: string;
+  kind: AppointmentProposalKind;
+}) {
+  const sentAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("appointment_proposals")
+    .insert({
+      request_id: input.requestId,
+      appointment_date: input.appointmentDate,
+      appointment_time: normalizeAppointmentTime(input.appointmentTime),
+      message: input.message.trim() || null,
+      sent_at: sentAt,
+      proposal_kind: input.kind,
+    })
+    .select(APPOINTMENT_PROPOSAL_SELECT_FIELDS)
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === "42501" || error.message?.includes("row-level security")) {
+      throw new Error(
+        "Chýba oprávnenie pre appointment_proposals. Spustite supabase/fix-casker-db-permissions.sql v Supabase.",
+      );
+    }
+    if (error.code === "PGRST204" || error.code === "PGRST205") {
+      throw new Error(
+        "Chýba tabuľka appointment_proposals. Spustite migráciu supabase/appointment-proposals.sql.",
+      );
+    }
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("Návrh termínu sa nepodarilo zaznamenať.");
+  }
+
+  return data as AppointmentProposal;
 }
 
 export function buildAppointmentMapByRequestId(
@@ -260,8 +432,17 @@ export async function createPendingAppointment(input: {
 
   if (error) throw error;
 
+  await recordAppointmentProposal({
+    requestId: input.request.id,
+    appointmentDate: input.appointmentDate,
+    appointmentTime: input.appointmentTime,
+    message: input.message,
+    kind: "initial",
+  });
+
   try {
     await updateRequestStatus(input.request.id, "waiting");
+    await clearRequestRescheduleRequested(input.request.id);
   } catch (updateError) {
     console.warn("Stav dopytu sa nepodarilo uložiť do DB:", updateError);
   }
@@ -308,10 +489,23 @@ export async function rescheduleAppointment(input: {
   if (existing?.id) {
     const { error: updateError } = await supabase
       .from("appointments")
-      .update(appointmentPayload)
+      .update({
+        ...appointmentPayload,
+        reschedule_requested_at: null,
+      })
       .eq("id", existing.id);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      if (updateError.code === "PGRST204") {
+        const { error: legacyUpdateError } = await supabase
+          .from("appointments")
+          .update(appointmentPayload)
+          .eq("id", existing.id);
+        if (legacyUpdateError) throw legacyUpdateError;
+      } else {
+        throw updateError;
+      }
+    }
   } else {
     const { error: insertError } = await supabase
       .from("appointments")
@@ -320,7 +514,16 @@ export async function rescheduleAppointment(input: {
     if (insertError) throw insertError;
   }
 
+  await recordAppointmentProposal({
+    requestId: input.request.id,
+    appointmentDate: input.appointmentDate,
+    appointmentTime: input.appointmentTime,
+    message: input.message,
+    kind: existing?.id ? "counter" : "initial",
+  });
+
   await updateRequestStatus(input.request.id, "waiting");
+  await clearRequestRescheduleRequested(input.request.id);
 }
 
 export async function syncAcceptedRequestStatuses() {
@@ -391,10 +594,21 @@ export async function syncAcceptedRequestStatuses() {
 export async function fetchAcceptedAppointments() {
   const { data, error } = await supabase
     .from("appointments")
-    .select(
-      "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, message, created_at",
-    )
+    .select(APPOINTMENT_SELECT_FIELDS)
     .eq("status", "accepted");
+
+  if (error?.code === "PGRST204") {
+    const fallback = await supabase
+      .from("appointments")
+      .select(APPOINTMENT_SELECT_FIELDS_LEGACY)
+      .eq("status", "accepted");
+    if (fallback.error) throw fallback.error;
+    return ([...(fallback.data ?? [])] as Appointment[]).sort((left, right) => {
+      const dateCompare = left.appointment_date.localeCompare(right.appointment_date);
+      if (dateCompare !== 0) return dateCompare;
+      return left.appointment_time.localeCompare(right.appointment_time);
+    });
+  }
 
   if (error) throw error;
 
@@ -408,26 +622,21 @@ export async function fetchAcceptedAppointments() {
 export async function fetchPendingAppointments() {
   const { data, error } = await supabase
     .from("appointments")
-    .select(
-      "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, message, created_at",
-    )
+    .select(APPOINTMENT_SELECT_FIELDS)
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
-  if (error) {
-    if (error.code === "PGRST204") {
-      const fallback = await supabase
-        .from("appointments")
-        .select(
-          "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, created_at",
-        )
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-      if (fallback.error) throw fallback.error;
-      return (fallback.data ?? []) as Appointment[];
-    }
-    throw error;
+  if (error?.code === "PGRST204") {
+    const fallback = await supabase
+      .from("appointments")
+      .select(APPOINTMENT_SELECT_FIELDS_LEGACY)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (fallback.error) throw fallback.error;
+    return (fallback.data ?? []) as Appointment[];
   }
+
+  if (error) throw error;
 
   return (data ?? []) as Appointment[];
 }

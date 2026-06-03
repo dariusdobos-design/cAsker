@@ -1,15 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { History, LayoutDashboard, User } from "lucide-react";
+import { CreditCard, History, LayoutDashboard, LogOut, Settings, User } from "lucide-react";
+import { signOutCurrentUser } from "@/lib/companies";
 
-export function ProfileMenu() {
+type ProfileMenuProps = {
+  onManageAccount?: () => void;
+  onSubscription?: () => void;
+  onLogout?: () => void;
+  showNavigation?: boolean;
+};
+
+export function ProfileMenu({
+  onManageAccount,
+  onSubscription,
+  onLogout,
+  showNavigation = true,
+}: ProfileMenuProps = {}) {
+  const router = useRouter();
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const isHistoryPage = pathname === "/history";
+  const isAuthPage = pathname === "/auth";
+  const showDashboardNavigation = showNavigation && !isAuthPage;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -32,6 +48,45 @@ export function ProfileMenu() {
     };
   }, [isOpen]);
 
+  const closeMenu = () => setIsOpen(false);
+
+  const handleManageAccount = () => {
+    closeMenu();
+    if (onManageAccount) {
+      onManageAccount();
+      return;
+    }
+    router.push("/auth");
+  };
+
+  const handleSubscription = () => {
+    closeMenu();
+    if (onSubscription) {
+      onSubscription();
+      return;
+    }
+    router.push("/auth");
+  };
+
+  const handleLogout = () => {
+    closeMenu();
+    if (onLogout) {
+      onLogout();
+      return;
+    }
+
+    void (async () => {
+      try {
+        await signOutCurrentUser();
+      } catch (error) {
+        console.error("Odhlásenie zlyhalo:", error);
+      } finally {
+        router.push("/auth");
+        router.refresh();
+      }
+    })();
+  };
+
   return (
     <div className="casker-profile-menu" ref={menuRef}>
       <button
@@ -47,27 +102,63 @@ export function ProfileMenu() {
 
       {isOpen ? (
         <div className="casker-profile-menu-dropdown" role="menu">
-          {isHistoryPage ? (
-            <Link
-              href="/"
-              className="casker-profile-menu-item"
+          {showDashboardNavigation ? (
+            isHistoryPage ? (
+              <Link
+                href="/"
+                className="casker-profile-menu-item"
+                role="menuitem"
+                onClick={closeMenu}
+              >
+                <LayoutDashboard className="h-4 w-4" strokeWidth={2.25} />
+                Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/history"
+                className="casker-profile-menu-item"
+                role="menuitem"
+                onClick={closeMenu}
+              >
+                <History className="h-4 w-4" strokeWidth={2.25} />
+                História dopytov
+              </Link>
+            )
+          ) : null}
+
+          <div
+            className={
+              showDashboardNavigation ? "mt-1 border-t border-zinc-200 pt-1" : undefined
+            }
+          >
+            <button
+              type="button"
+              className="casker-profile-menu-item casker-profile-menu-button"
               role="menuitem"
-              onClick={() => setIsOpen(false)}
+              onClick={handleManageAccount}
             >
-              <LayoutDashboard className="h-4 w-4" strokeWidth={2.25} />
-              Dashboard
-            </Link>
-          ) : (
-            <Link
-              href="/history"
-              className="casker-profile-menu-item"
+              <Settings className="h-4 w-4" strokeWidth={2.25} />
+              Spravovať účet
+            </button>
+            <button
+              type="button"
+              className="casker-profile-menu-item casker-profile-menu-button"
               role="menuitem"
-              onClick={() => setIsOpen(false)}
+              onClick={handleSubscription}
             >
-              <History className="h-4 w-4" strokeWidth={2.25} />
-              História dopytov
-            </Link>
-          )}
+              <CreditCard className="h-4 w-4" strokeWidth={2.25} />
+              Predplatné
+            </button>
+            <button
+              type="button"
+              className="casker-profile-menu-item casker-profile-menu-button"
+              role="menuitem"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" strokeWidth={2.25} />
+              Odhlásiť sa
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

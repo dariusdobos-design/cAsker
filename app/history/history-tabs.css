@@ -1,0 +1,127 @@
+.casker-history-pills {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  margin: 0.5rem 0 0.625rem;
+}
+
+.casker-history-sidebar-head {
+  position: relative;
+  flex-shrink: 0;
+  padding: 0 1rem;
+}
+
+.casker-history-back-row {
+  position: relative;
+  height: 2.5rem;
+  margin-top: 0.875rem;
+}
+
+.casker-history-page .casker-history-sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding: 0 1rem 1rem;
+}
+
+.casker-history-title {
+  margin: 0 0 0.5rem;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #0f172a;
+}
+
+.casker-history-sidebar-head .casker-state-search {
+  margin-bottom: 0.875rem;
+}
+
+.casker-history-round-back {
+  position: absolute;
+  top: 0;
+  left: 0.125rem;
+  z-index: 2;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  background: #0b194f;
+  color: #ffffff;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgb(11 25 79 / 0.28);
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.casker-history-round-back:hover {
+  background: #0a1338;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgb(11 25 79 / 0.34);
+}
+
+.casker-history-pill {
+  display: inline-flex;
+  flex: 1 1 0;
+  max-width: 6.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3125rem;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow:
+    0 4px 10px rgb(0 0 0 / 0.14),
+    0 2px 4px rgb(0 0 0 / 0.08);
+  transition:
+    height 0.25s ease,
+    padding 0.25s ease,
+    font-size 0.25s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.casker-history-pill.is-active {
+  height: 2.75rem;
+  padding: 0 0.75rem;
+  font-size: 0.8125rem;
+  background-color: #0b194f;
+  color: #ffffff;
+  box-shadow:
+    0 8px 20px rgb(11 25 79 / 0.38),
+    0 4px 8px rgb(0 0 0 / 0.16);
+}
+
+.casker-history-pill.is-inactive {
+  height: 2.125rem;
+  padding: 0 0.625rem;
+  font-size: 0.75rem;
+  background-color: #f4f4f5;
+  color: #18181b;
+}
+
+.casker-history-pill.is-active svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.casker-history-pill.is-inactive svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}

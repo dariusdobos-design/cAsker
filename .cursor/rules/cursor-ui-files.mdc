@@ -1,0 +1,14 @@
+---
+description: Ako v Cursore zobraziť súbory projektu (nie chat)
+alwaysApply: true
+---
+
+# Cursor – zobrazenie súborov projektu
+
+Keď používateľ chce vidieť strom súborov projektu (vložiť súbor, vytvoriť zložku, upraviť kód v editore):
+
+- **Správna cesta:** menu **View → Files**
+- Nepoužívať ako primárnu radu VS Code skratky (`Ctrl+Shift+E` atď.) – v Cursore môžu viesť na chat/agent panel, nie na súbory.
+- Pravý panel s terminálom (`npm run dev`) **nie je** explorer súborov.
+
+Pre nový súbor/zložku: najprv **View → Files**, potom pravý klik na priečinok → New File / New Folder.

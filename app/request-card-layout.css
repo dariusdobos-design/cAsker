@@ -1,0 +1,103 @@
+.casker-request-card-footer.is-inquiry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.75rem;
+  row-gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.casker-request-card-footer.is-inquiry .casker-tag {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  align-self: start;
+}
+
+.casker-request-card-footer.is-inquiry .casker-request-created-time {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  align-self: end;
+}
+
+.casker-request-card-footer.is-inquiry .casker-inquiry-location {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  justify-self: end;
+  align-self: end;
+}
+
+.casker-request-card-footer.is-scheduled {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  column-gap: 0.75rem;
+  align-items: start;
+  margin-top: 0.5rem;
+}
+
+.casker-request-card-footer.is-scheduled .casker-tag {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  align-self: start;
+}
+
+.casker-request-card-footer.is-scheduled .casker-scheduled-location {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  align-self: start;
+}
+
+.casker-scheduled-location,
+.casker-inquiry-location {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.casker-request-location-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.0625rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.casker-request-distance-row {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 0.25rem;
+  max-width: 100%;
+  margin-top: -0.125rem;
+  margin-bottom: 0.125rem;
+}
+
+.casker-request-location-pin {
+  display: block;
+  flex-shrink: 0;
+  margin: 0;
+  transform: translateY(-0.1875rem);
+}
+
+.casker-request-distance-km {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #3f3f46;
+  white-space: nowrap;
+}
+
+.casker-request-card-footer.is-scheduled .casker-request-origin-city,
+.casker-request-card-footer.is-inquiry .casker-request-origin-city {
+  align-self: flex-end;
+  place-self: auto;
+  grid-area: unset;
+  min-height: 0;
+  line-height: 1.15;
+  white-space: nowrap;
+}

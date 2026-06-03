@@ -5,7 +5,8 @@ import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   addDays,
   CALENDAR_HOUR_HEIGHT_REM,
-  formatAppointmentLabel,
+  findRequestForAppointment,
+  formatCalendarAppointmentLabel,
   formatCalendarHourLabel,
   getCalendarAppointmentTopRem,
   getCalendarHourLabels,
@@ -14,6 +15,7 @@ import {
   startOfWeek,
   toDateKey,
   type Appointment,
+  type RequestLike,
 } from "@/lib/appointments";
 import "./map-calendar.css";
 
@@ -26,6 +28,7 @@ type MapCalendarProps = {
   isOpen: boolean;
   onToggle: () => void;
   appointments: Appointment[];
+  requests: RequestLike[];
   onSelectAppointment: (appointment: Appointment) => void;
   onRefresh?: () => void;
   children: React.ReactNode;
@@ -71,6 +74,7 @@ export function MapCalendar({
   isOpen,
   onToggle,
   appointments,
+  requests,
   onSelectAppointment,
   onRefresh,
   children,
@@ -146,23 +150,27 @@ export function MapCalendar({
     appointment: Appointment,
     compact = false,
     showTime = true,
-  ) => (
-    <button
-      key={appointment.id}
-      type="button"
-      className={`casker-calendar-event ${compact ? "is-compact" : ""}`}
-      onClick={() => onSelectAppointment(appointment)}
-    >
-      {showTime ? (
-        <span className="casker-calendar-event-time">
-          {appointment.appointment_time.slice(0, 5)}
+  ) => {
+    const matchedRequest = findRequestForAppointment(appointment, requests);
+
+    return (
+      <button
+        key={appointment.id}
+        type="button"
+        className={`casker-calendar-event ${compact ? "is-compact" : ""}`}
+        onClick={() => onSelectAppointment(appointment)}
+      >
+        {showTime ? (
+          <span className="casker-calendar-event-time">
+            {appointment.appointment_time.slice(0, 5)}
+          </span>
+        ) : null}
+        <span className="casker-calendar-event-title">
+          {formatCalendarAppointmentLabel(appointment, matchedRequest)}
         </span>
-      ) : null}
-      <span className="casker-calendar-event-title">
-        {formatAppointmentLabel(appointment)}
-      </span>
-    </button>
-  );
+      </button>
+    );
+  };
 
   const renderPositionedAppointments = (
     groups: ReturnType<typeof groupAppointmentsByTime>,

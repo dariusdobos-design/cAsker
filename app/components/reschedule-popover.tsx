@@ -24,9 +24,11 @@ type ReschedulePopoverProps = {
 };
 
 function getSubmitErrorMessage(error: unknown) {
-  const message = getSupabaseErrorMessage(error);
-  if (message.includes("row-level security") || message.includes("RLS")) {
-    return "Chýba oprávnenie na uloženie do databázy. Spustite migráciu v Supabase.";
+  const message =
+    error instanceof Error ? error.message : getSupabaseErrorMessage(error);
+  if (message.includes("fix-casker-db-permissions.sql")) return message;
+  if (message.includes("row-level security") || message.includes("RLS") || message.includes("42501")) {
+    return "Chýba oprávnenie v databáze. Spustite supabase/fix-casker-db-permissions.sql v Supabase SQL editore.";
   }
   return message || "Termín sa nepodarilo zmeniť.";
 }

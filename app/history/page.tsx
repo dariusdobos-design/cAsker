@@ -1,8 +1,9 @@
 "use client";
 
+import "./history-tabs.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, MapPin } from "lucide-react";
+import { CheckCircle2, ChevronLeft, MapPin, Search, XCircle } from "lucide-react";
 import { ProfileMenu } from "../components/profile-menu";
 import { RequestArchiveDetail } from "../components/request-archive-detail";
 import { RequestCardIcon } from "../components/request-card-icon";
@@ -14,11 +15,26 @@ import {
 } from "@/lib/appointments";
 import {
   fetchCompletedRequests,
+  getRequestCategoryCardClass,
+  groupCancelledRequestsByDate,
   groupCompletedRequestsByDate,
+  matchesRequestSearchQuery,
+  restoreRequest,
   subscribeToRequestChanges,
+  syncCancelledRequests,
+  type CancelledRequest,
   type CompletedRequest,
 } from "@/lib/requests";
 import { getSupabaseErrorMessage } from "@/lib/supabase-error";
+
+type HistoryTab = "completed" | "cancelled";
+
+const EMPTY_HISTORY_SEARCH: Record<HistoryTab, string> = {
+  completed: "",
+  cancelled: "",
+};
+
+const CANCELLED_SYNC_INTERVAL_MS = 15_000;
 
 function formatDistanceKm(value: number) {
   return value.toLocaleString("sk-SK", {
@@ -28,34 +44,56 @@ function formatDistanceKm(value: number) {
 }
 
 export default function HistoryPage() {
-  const [requests, setRequests] = useState<CompletedRequest[]>([]);
+  const [activeTab, setActiveTab] = useState<HistoryTab>("completed");
+  const [completedRequests, setCompletedRequests] = useState<CompletedRequest[]>([]);
+  const [cancelledRequests, setCancelledRequests] = useState<CancelledRequest[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [historySearchQueries, setHistorySearchQueries] =
+    useState<Record<HistoryTab, string>>(EMPTY_HISTORY_SEARCH);
+
+  const activeRequests =
+    activeTab === "completed" ? completedRequests : cancelledRequests;
+  const activeSearchQuery = historySearchQueries[activeTab].trim();
 
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
 
     try {
-      const [completedRequests, acceptedAppointments] = await Promise.all([
+      const [completed, cancelled, acceptedAppointments] = await Promise.all([
         fetchCompletedRequests(),
+        syncCancelledRequests(),
         fetchAcceptedAppointments(),
       ]);
 
-      setRequests(completedRequests);
+      setCompletedRequests(completed);
+      setCancelledRequests(cancelled);
       setAppointments(acceptedAppointments);
-      setSelectedRequestId((current) => {
-        if (current && completedRequests.some((request) => request.id === current)) {
-          return current;
-        }
-        return completedRequests[0]?.id ?? null;
-      });
     } catch (error) {
       setLoadError(getSupabaseErrorMessage(error));
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  const refreshCancelledRequests = useCallback(async () => {
+    try {
+      const synced = await syncCancelledRequests();
+      setCancelledRequests(synced);
+      setSelectedRequestId((current) => {
+        if (current && synced.some((request) => request.id === current)) {
+          return current;
+        }
+        return synced[0]?.id ?? null;
+      });
+    } catch (error) {
+      console.warn(
+        "Synchronizácia zrušených dopytov zlyhala:",
+        getSupabaseErrorMessage(error),
+      );
     }
   }, []);
 
@@ -78,24 +116,78 @@ export default function HistoryPage() {
     });
   }, [loadHistory]);
 
-  const groupedRequests = useMemo(
-    () => groupCompletedRequestsByDate(requests),
-    [requests],
-  );
+  useEffect(() => {
+    if (activeTab !== "cancelled") return;
+
+    void refreshCancelledRequests();
+
+    const intervalId = window.setInterval(() => {
+      void refreshCancelledRequests();
+    }, CANCELLED_SYNC_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeTab, refreshCancelledRequests]);
 
   const appointmentByRequestId = useMemo(
-    () => buildAppointmentMapByRequestId(appointments, requests),
-    [appointments, requests],
+    () => buildAppointmentMapByRequestId(appointments, activeRequests),
+    [appointments, activeRequests],
   );
 
+  const filteredActiveRequests = useMemo(() => {
+    if (!activeSearchQuery) return activeRequests;
+
+    return activeRequests.filter((request) =>
+      matchesRequestSearchQuery(
+        request,
+        activeSearchQuery,
+        appointmentByRequestId.get(request.id),
+      ),
+    );
+  }, [activeRequests, activeSearchQuery, appointmentByRequestId]);
+
+  const groupedRequests = useMemo(() => {
+    if (activeTab === "completed") {
+      return groupCompletedRequestsByDate(filteredActiveRequests as CompletedRequest[]);
+    }
+    return groupCancelledRequestsByDate(filteredActiveRequests as CancelledRequest[]);
+  }, [activeTab, filteredActiveRequests]);
+
+  useEffect(() => {
+    setSelectedRequestId((current) => {
+      if (current && filteredActiveRequests.some((request) => request.id === current)) {
+        return current;
+      }
+      return filteredActiveRequests[0]?.id ?? null;
+    });
+  }, [filteredActiveRequests, activeTab]);
+
   const selectedRequest = useMemo(
-    () => requests.find((request) => request.id === selectedRequestId) ?? null,
-    [requests, selectedRequestId],
+    () => filteredActiveRequests.find((request) => request.id === selectedRequestId) ?? null,
+    [filteredActiveRequests, selectedRequestId],
   );
 
   const selectedAppointment = selectedRequest
     ? appointmentByRequestId.get(selectedRequest.id) ?? null
     : null;
+
+  const handleRestoreRequest = async (request: CancelledRequest) => {
+    await restoreRequest(request);
+    setCancelledRequests((current) =>
+      current.filter((entry) => entry.id !== request.id),
+    );
+    setSelectedRequestId(null);
+    void loadHistory();
+  };
+
+  const emptyMessage =
+    activeTab === "completed"
+      ? "Zatiaľ nemáte dokončené dopyty. Po označení ako Hotové sa tu zobrazia."
+      : "Zatiaľ nemáte zrušené dopyty. Po zrušení dopytu sa tu zobrazia.";
+
+  const mainEmptyMessage =
+    activeTab === "completed"
+      ? "Vyberte dokončený dopyt v ľavom zozname."
+      : "Vyberte zrušený dopyt v ľavom zozname.";
 
   return (
     <div className="casker-dashboard casker-history-page font-sans">
@@ -108,75 +200,139 @@ export default function HistoryPage() {
           </Link>
         </header>
 
-        <div className="casker-sidebar-scroll">
-          <h2 className="casker-history-title">
-            <Link
-              href="/"
-              className="casker-history-round-back"
-              aria-label="Späť na dashboard"
-            >
-              <ChevronLeft className="h-5 w-5" strokeWidth={2.75} />
-            </Link>
-            História dopytov
-          </h2>
+        <div className="casker-history-sidebar-body">
+          <div className="casker-history-sidebar-head">
+            <div className="casker-history-back-row">
+              <Link
+                href="/"
+                className="casker-history-round-back"
+                aria-label="Späť na dashboard"
+              >
+                <ChevronLeft className="h-5 w-5" strokeWidth={2.75} />
+              </Link>
+            </div>
 
-          {isLoading ? (
-            <p className="casker-history-empty">Načítavam históriu…</p>
-          ) : loadError ? (
-            <p className="casker-history-empty casker-history-empty--error">
-              {loadError}
-            </p>
-          ) : groupedRequests.length === 0 ? (
-            <p className="casker-history-empty">
-              Zatiaľ nemáte dokončené dopyty. Po označení ako Hotové sa tu
-              zobrazia.
-            </p>
-          ) : (
-            groupedRequests.map((group) => (
-              <section key={group.dateKey} className="casker-history-group">
-                <h3 className="casker-history-date">{group.label}</h3>
-                <div className="casker-request-list">
-                  {group.requests.map((request) => {
-                    const isSelected = selectedRequestId === request.id;
+            <div className="casker-history-pills" role="tablist" aria-label="Typ histórie">
+              <button
+                type="button"
+                role="tab"
+                className={`casker-history-pill ${activeTab === "completed" ? "is-active" : "is-inactive"}`}
+                aria-label="Hotové"
+                aria-selected={activeTab === "completed"}
+                onClick={() => setActiveTab("completed")}
+              >
+                <CheckCircle2 strokeWidth={2.25} />
+                <span>Hotové</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className={`casker-history-pill ${activeTab === "cancelled" ? "is-active" : "is-inactive"}`}
+                aria-label="Zrušené"
+                aria-selected={activeTab === "cancelled"}
+                onClick={() => setActiveTab("cancelled")}
+              >
+                <XCircle strokeWidth={2.25} />
+                <span>Zrušené</span>
+              </button>
+            </div>
 
-                    return (
-                      <button
-                        key={request.id}
-                        type="button"
-                        className={`casker-request-card ${isSelected ? "is-selected" : ""}`}
-                        onClick={() => setSelectedRequestId(request.id)}
-                        aria-pressed={isSelected}
-                      >
-                        <div className="flex w-full items-start gap-2">
-                          <div className="casker-card-icon">
-                            <RequestCardIcon category={request.vehicleCategory} />
-                          </div>
-                          <div className="min-w-0 flex-1 overflow-hidden">
-                            <h3 className="text-base font-bold leading-tight text-zinc-900">
-                              {request.vehicleName} {request.year}
-                            </h3>
-                            <p className="casker-request-service text-red-600">
-                              {request.service}
-                            </p>
-                          </div>
-                        </div>
+            <h2 className="casker-history-title">História dopytov</h2>
 
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <span className="casker-tag">
-                            EČ - {request.licensePlate}
-                          </span>
-                          <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-zinc-700">
-                            <MapPin className="h-3.5 w-3.5 text-[#0B194F]" />
-                            <span>{formatDistanceKm(request.distanceKm)} km</span>
+            <div className="casker-state-search">
+              <label htmlFor={`history-search-${activeTab}`} className="sr-only">
+                Hľadať v histórii dopytov
+              </label>
+              <div className="casker-state-search-field">
+                <Search className="casker-state-search-icon" strokeWidth={2.25} aria-hidden />
+                <input
+                  id={`history-search-${activeTab}`}
+                  type="text"
+                  role="searchbox"
+                  value={historySearchQueries[activeTab]}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setHistorySearchQueries((current) => ({
+                      ...current,
+                      [activeTab]: value,
+                    }));
+                  }}
+                  placeholder="Hľadať"
+                  className="casker-state-search-input"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="casker-sidebar-scroll casker-history-sidebar-scroll">
+            {isLoading ? (
+              <p className="casker-history-empty">Načítavam históriu…</p>
+            ) : loadError ? (
+              <p className="casker-history-empty casker-history-empty--error">
+                {loadError}
+              </p>
+            ) : groupedRequests.length === 0 ? (
+              <p className="casker-history-empty">
+                {activeSearchQuery && activeRequests.length > 0
+                  ? `Nenašli sme dopyty pre „${activeSearchQuery}“`
+                  : emptyMessage}
+              </p>
+            ) : (
+              groupedRequests.map((group) => (
+                <section key={group.dateKey} className="casker-history-group">
+                  <h3 className="casker-history-date">{group.label}</h3>
+                  <div className="casker-request-list">
+                    {group.requests.map((request) => {
+                      const isSelected = selectedRequestId === request.id;
+                      const categoryClass = getRequestCategoryCardClass(
+                        request.requestCategory,
+                      );
+
+                      return (
+                        <button
+                          key={request.id}
+                          type="button"
+                          className={`casker-request-card ${isSelected ? "is-selected" : ""}${categoryClass ? ` ${categoryClass}` : ""}`}
+                          onClick={() => setSelectedRequestId(request.id)}
+                          aria-pressed={isSelected}
+                        >
+                          <div className="flex w-full items-start gap-2">
+                            <div className="casker-card-icon">
+                              <RequestCardIcon
+                                category={request.vehicleCategory}
+                                requestCategory={request.requestCategory}
+                                request={request}
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1 overflow-hidden">
+                              <h3 className="text-base font-bold leading-tight text-zinc-900">
+                                {request.vehicleName} {request.year}
+                              </h3>
+                              <p className="casker-request-service text-red-600">
+                                {request.service}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            ))
-          )}
+
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <span className="casker-tag">
+                              EČ - {request.licensePlate}
+                            </span>
+                            <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-zinc-700">
+                              <MapPin className="h-3.5 w-3.5 text-[#0B194F]" />
+                              <span>{formatDistanceKm(request.distanceKm)} km</span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))
+            )}
+          </div>
         </div>
 
         <footer className="casker-sidebar-footer">
@@ -185,17 +341,23 @@ export default function HistoryPage() {
         </footer>
       </aside>
 
-      <main className="casker-history-main" aria-label="Detail dokončeného dopytu">
+      <main
+        className="casker-history-main"
+        aria-label={
+          activeTab === "completed" ? "Detail dokončeného dopytu" : "Detail zrušeného dopytu"
+        }
+      >
         {selectedRequest ? (
           <RequestArchiveDetail
             request={selectedRequest}
             appointment={selectedAppointment}
+            onRestore={
+              activeTab === "cancelled" ? handleRestoreRequest : undefined
+            }
           />
         ) : (
           <div className="casker-history-main-empty">
-            {isLoading
-              ? "Načítavam detail dopytu…"
-              : "Vyberte dokončený dopyt v ľavom zozname."}
+            {isLoading ? "Načítavam detail dopytu…" : mainEmptyMessage}
           </div>
         )}
       </main>

@@ -1,0 +1,39 @@
+/* Prijaté panel: Hotové | Chat | Zmena termínu v jednom riadku na celú šírku */
+.casker-detail-contact:has(.casker-detail-actions.is-done) {
+  width: 100%;
+  max-width: none;
+}
+
+.casker-detail-action-block:has(.casker-detail-actions.is-done) {
+  align-items: stretch;
+}
+
+.casker-detail-actions.is-done {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.72fr);
+  align-items: stretch;
+  justify-items: stretch;
+  justify-content: stretch;
+  gap: 0.3125rem;
+  flex-wrap: nowrap;
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+}
+
+.casker-detail-actions.is-done .casker-complete-btn,
+.casker-detail-actions.is-done .casker-chat-btn,
+.casker-detail-actions.is-done .casker-reschedule-btn {
+  width: 100%;
+  min-width: 0;
+}
+
+.casker-detail-actions.is-done .casker-complete-btn,
+.casker-detail-actions.is-done .casker-chat-btn {
+  padding: 0.5rem 0.375rem;
+  font-size: 0.6875rem;
+}
+
+.casker-detail-actions.is-done .casker-reschedule-btn {
+  padding: 0.5rem;
+}
