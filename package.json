@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "wipe-requests": "node scripts/wipe-all-requests.mjs",
+    "build:service-map-pin": "node scripts/build-service-map-pin.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

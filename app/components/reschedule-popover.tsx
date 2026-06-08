@@ -10,6 +10,7 @@ import {
   rescheduleAppointment,
   toDateKey,
   type Appointment,
+  type AppointmentServiceInfo,
 } from "@/lib/appointments";
 import type { Request } from "@/lib/requests";
 import { getSupabaseErrorMessage } from "@/lib/supabase-error";
@@ -17,6 +18,7 @@ import { getSupabaseErrorMessage } from "@/lib/supabase-error";
 type ReschedulePopoverProps = {
   request: Request;
   currentAppointment: Appointment | null;
+  serviceInfo?: AppointmentServiceInfo;
   anchorRef: React.RefObject<HTMLButtonElement | null>;
   isOpen: boolean;
   onClose: () => void;
@@ -43,6 +45,7 @@ const BOOKING_MINUTES = Array.from({ length: 60 }, (_, index) =>
 export function ReschedulePopover({
   request,
   currentAppointment,
+  serviceInfo,
   anchorRef,
   isOpen,
   onClose,
@@ -198,6 +201,7 @@ export function ReschedulePopover({
         appointmentDate,
         appointmentTime: parsed,
         message,
+        serviceInfo,
       });
       setSuccess(true);
       onRescheduled(request.id);

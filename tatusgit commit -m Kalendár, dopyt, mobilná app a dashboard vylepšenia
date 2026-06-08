@@ -1,0 +1,3436 @@
+warning: in the working copy of 'app/components/booking-popover.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/components/map-calendar.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/components/map-calendar.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/components/map-marker-detail-card.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/components/reschedule-popover.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/components/service-map.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/globals.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/history/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/request-card-attention.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/appointments.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/request-map.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/requests.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mobile-app/app.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mobile-app/app/(tabs)/index.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mobile-app/app/_layout.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mobile-app/components/driver-home-map.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mobile-app/components/driver-request-sheet.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mobile-app/components/state-icons.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mobile-app/package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'mobile-app/package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package.json', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/app/components/booking-popover.tsx b/app/components/booking-popover.tsx[m
+[1mindex ea17aad..17f3731 100644[m
+[1m--- a/app/components/booking-popover.tsx[m
+[1m+++ b/app/components/booking-popover.tsx[m
+[36m@@ -9,12 +9,14 @@[m [mimport {[m
+   getAppointmentDateTimeValidationError,[m
+   parseBookingTimeInput,[m
+   toDateKey,[m
+[32m+[m[32m  type AppointmentServiceInfo,[m
+ } from "@/lib/appointments";[m
+ import type { Request } from "@/lib/requests";[m
+ import { getSupabaseErrorMessage } from "@/lib/supabase-error";[m
+ [m
+ type BookingPopoverProps = {[m
+   request: Request;[m
+[32m+[m[32m  serviceInfo?: AppointmentServiceInfo;[m
+   anchorRef: React.RefObject<HTMLButtonElement | null>;[m
+   isOpen: boolean;[m
+   onClose: () => void;[m
+[36m@@ -41,6 +43,7 @@[m [mconst BOOKING_MINUTES = Array.from({ length: 60 }, (_, index) =>[m
+ [m
+ export function BookingPopover({[m
+   request,[m
+[32m+[m[32m  serviceInfo,[m
+   anchorRef,[m
+   isOpen,[m
+   onClose,[m
+[36m@@ -194,6 +197,7 @@[m [mexport function BookingPopover({[m
+         appointmentDate,[m
+         appointmentTime: parsedTime,[m
+         message,[m
+[32m+[m[32m        serviceInfo,[m
+       });[m
+       setSuccess(true);[m
+       onCreated(request.id);[m
+[1mdiff --git a/app/components/map-calendar.css b/app/components/map-calendar.css[m
+[1mindex 5e660ed..628ae49 100644[m
+[1m--- a/app/components/map-calendar.css[m
+[1m+++ b/app/components/map-calendar.css[m
+[36m@@ -237,6 +237,8 @@[m
+ .casker-calendar-time-track {[m
+   position: relative;[m
+   min-width: 0;[m
+[32m+[m[32m  padding-inline: 0.1875rem;[m
+[32m+[m[32m  box-sizing: border-box;[m
+ }[m
+ [m
+ .casker-calendar-time-track.is-week {[m
+[36m@@ -264,7 +266,6 @@[m
+   display: flex;[m
+   flex-direction: column;[m
+   gap: 0.25rem;[m
+[31m-  padding-right: 0.125rem;[m
+ }[m
+ [m
+ .casker-calendar-week-view {[m
+[36m@@ -327,25 +328,36 @@[m
+ .casker-calendar-event {[m
+   display: flex;[m
+   width: 100%;[m
+[32m+[m[32m  box-sizing: border-box;[m
+   flex-direction: column;[m
+   align-items: flex-start;[m
+   gap: 0.125rem;[m
+[31m-  border: 1px solid rgb(11 25 79 / 0.16);[m
+[31m-  border-radius: var(--casker-radius);[m
+[32m+[m[32m  border: 2px solid rgb(11 25 79 / 0.16);[m
+[32m+[m[32m  border-radius: calc(var(--casker-radius) - 1px);[m
+   background: rgb(11 25 79 / 0.08);[m
+[31m-  padding: 0.5rem 0.625rem;[m
+[32m+[m[32m  padding: 0.4375rem 0.5rem;[m
+   text-align: left;[m
+   cursor: pointer;[m
+   transition:[m
+     background-color 0.15s ease,[m
+[31m-    transform 0.15s ease,[m
+[31m-    border-color 0.15s ease;[m
+[32m+[m[32m    border-color 0.15s ease,[m
+[32m+[m[32m    box-shadow 0.15s ease;[m
+ }[m
+ [m
+ .casker-calendar-event:hover {[m
+   background: rgb(11 25 79 / 0.12);[m
+[31m-  border-color: rgb(11 25 79 / 0.24);[m
+[31m-  transform: translateY(-1px);[m
+[32m+[m[32m  border-color: rgb(11 25 79 / 0.28);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.casker-calendar-event.is-selected {[m
+[32m+[m[32m  border-color: var(--casker-navy);[m
+[32m+[m[32m  background: rgb(11 25 79 / 0.16);[m
+[32m+[m[32m  box-shadow: 0 1px 6px rgb(11 25 79 / 0.12);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.casker-calendar-event.is-selected:hover {[m
+[32m+[m[32m  background: rgb(11 25 79 / 0.2);[m
+[32m+[m[32m  border-color: var(--casker-navy);[m
+ }[m
+ [m
+ .casker-calendar-event.is-compact {[m
+[1mdiff --git a/app/components/map-calendar.tsx b/app/components/map-calendar.tsx[m
+[1mindex 1b4eb9d..d55b128 100644[m
+[1m--- a/app/components/map-calendar.tsx[m
+[1m+++ b/app/components/map-calendar.tsx[m
+[36m@@ -29,6 +29,7 @@[m [mtype MapCalendarProps = {[m
+   onToggle: () => void;[m
+   appointments: Appointment[];[m
+   requests: RequestLike[];[m
+[32m+[m[32m  selectedAppointmentId?: string | null;[m
+   onSelectAppointment: (appointment: Appointment) => void;[m
+   onRefresh?: () => void;[m
+   children: React.ReactNode;[m
+[36m@@ -75,6 +76,7 @@[m [mexport function MapCalendar({[m
+   onToggle,[m
+   appointments,[m
+   requests,[m
+[32m+[m[32m  selectedAppointmentId = null,[m
+   onSelectAppointment,[m
+   onRefresh,[m
+   children,[m
+[36m@@ -153,12 +155,15 @@[m [mexport function MapCalendar({[m
+   ) => {[m
+     const matchedRequest = findRequestForAppointment(appointment, requests);[m
+ [m
+[32m+[m[32m    const isSelected = selectedAppointmentId === appointment.id;[m
+[32m+[m
+     return ([m
+       <button[m
+         key={appointment.id}[m
+         type="button"[m
+[31m-        className={`casker-calendar-event ${compact ? "is-compact" : ""}`}[m
+[32m+[m[32m        className={`casker-calendar-event ${compact ? "is-compact" : ""}${isSelected ? " is-selected" : ""}`}[m
+         onClick={() => onSelectAppointment(appointment)}[m
+[32m+[m[32m        aria-pressed={isSelected}[m
+       >[m
+         {showTime ? ([m
+           <span className="casker-calendar-event-time">[m
+[1mdiff --git a/app/components/map-marker-detail-card.tsx b/app/components/map-marker-detail-card.tsx[m
+[1mindex 37975ee..3e0e82e 100644[m
+[1m--- a/app/components/map-marker-detail-card.tsx[m
+[1m+++ b/app/components/map-marker-detail-card.tsx[m
+[36m@@ -1,5 +1,6 @@[m
+ import { MapPin, Navigation, X } from "lucide-react";[m
+ import { buildGoogleMapsDirectionsUrl } from "@/lib/google-maps-navigation";[m
+[32m+[m[32mimport { getInquiryUserDescription } from "@/lib/inquiry-description";[m
+ import { formatRequestCategoryLabel } from "@/lib/requests";[m
+ import type { RequestMapPoint } from "@/lib/request-map";[m
+ [m
+[36m@@ -38,7 +39,9 @@[m [mexport function MapMarkerDetailCard({ point, onClose }: MapMarkerDetailCardProps[m
+       <p className="casker-map-marker-card-service">{point.service}</p>[m
+       <div className="casker-map-marker-card-fault">[m
+         <p className="casker-map-marker-card-fault-label">Popis závady</p>[m
+[31m-        <div className="casker-map-marker-card-fault-box">{point.inquiryDescription}</div>[m
+[32m+[m[32m        <div className="casker-map-marker-card-fault-box">[m
+[32m+[m[32m          {getInquiryUserDescription(point.inquiryDescription) || point.inquiryDescription}[m
+[32m+[m[32m        </div>[m
+       </div>[m
+       <a[m
+         href={directionsUrl}[m
+[1mdiff --git a/app/components/reschedule-popover.tsx b/app/components/reschedule-popover.tsx[m
+[1mindex a2ad601..f3f2bac 100644[m
+[1m--- a/app/components/reschedule-popover.tsx[m
+[1m+++ b/app/components/reschedule-popover.tsx[m
+[36m@@ -10,6 +10,7 @@[m [mimport {[m
+   rescheduleAppointment,[m
+   toDateKey,[m
+   type Appointment,[m
+[32m+[m[32m  type AppointmentServiceInfo,[m
+ } from "@/lib/appointments";[m
+ import type { Request } from "@/lib/requests";[m
+ import { getSupabaseErrorMessage } from "@/lib/supabase-error";[m
+[36m@@ -17,6 +18,7 @@[m [mimport { getSupabaseErrorMessage } from "@/lib/supabase-error";[m
+ type ReschedulePopoverProps = {[m
+   request: Request;[m
+   currentAppointment: Appointment | null;[m
+[32m+[m[32m  serviceInfo?: AppointmentServiceInfo;[m
+   anchorRef: React.RefObject<HTMLButtonElement | null>;[m
+   isOpen: boolean;[m
+   onClose: () => void;[m
+[36m@@ -43,6 +45,7 @@[m [mconst BOOKING_MINUTES = Array.from({ length: 60 }, (_, index) =>[m
+ export function ReschedulePopover({[m
+   request,[m
+   currentAppointment,[m
+[32m+[m[32m  serviceInfo,[m
+   anchorRef,[m
+   isOpen,[m
+   onClose,[m
+[36m@@ -198,6 +201,7 @@[m [mexport function ReschedulePopover({[m
+         appointmentDate,[m
+         appointmentTime: parsed,[m
+         message,[m
+[32m+[m[32m        serviceInfo,[m
+       });[m
+       setSuccess(true);[m
+       onRescheduled(request.id);[m
+[1mdiff --git a/app/components/service-map.tsx b/app/components/service-map.tsx[m
+[1mindex 7a39f68..b9151dc 100644[m
+[1m--- a/app/components/service-map.tsx[m
+[1m+++ b/app/components/service-map.tsx[m
+[36m@@ -29,7 +29,9 @@[m [mconst DEFAULT_CENTER = { lat: 49.22, lng: 18.74 };[m
+ const DEFAULT_ZOOM = 9;[m
+ const SIDEBAR_FOCUS_ZOOM = 12;[m
+ const SERVICE_FOCUS_ZOOM = 15;[m
+[31m-const SERVICE_PIN_ICON = "/icons/service-pin.svg";[m
+[32m+[m[32mconst SERVICE_PIN_ICON = "/icons/service-map-pin.png";[m
+[32m+[m[32mconst SERVICE_PIN_WIDTH = 50;[m
+[32m+[m[32mconst SERVICE_PIN_HEIGHT = 60;[m
+ [m
+ const CASKER_MAP_STYLES: google.maps.MapTypeStyle[] = [[m
+   { elementType: "geometry", stylers: [{ color: "#d2dce6" }] },[m
+[36m@@ -244,8 +246,8 @@[m [mfunction ServiceMapContent({[m
+ [m
+     return {[m
+       url: SERVICE_PIN_ICON,[m
+[31m-      scaledSize: new google.maps.Size(36, 43),[m
+[31m-      anchor: new google.maps.Point(18, 43),[m
+[32m+[m[32m      scaledSize: new google.maps.Size(SERVICE_PIN_WIDTH, SERVICE_PIN_HEIGHT),[m
+[32m+[m[32m      anchor: new google.maps.Point(SERVICE_PIN_WIDTH / 2, SERVICE_PIN_HEIGHT),[m
+     };[m
+   }, [isApiLoaded]);[m
+ [m
+[1mdiff --git a/app/globals.css b/app/globals.css[m
+[1mindex 4063250..2ed990d 100644[m
+[1m--- a/app/globals.css[m
+[1m+++ b/app/globals.css[m
+[36m@@ -1665,6 +1665,14 @@[m [mbody {[m
+   color: #ffffff;[m
+ }[m
+ [m
+[32m+[m[32m.casker-chat-message-read {[m
+[32m+[m[32m  margin-top: 0.2rem;[m
+[32m+[m[32m  font-size: 0.5rem;[m
+[32m+[m[32m  font-weight: 500;[m
+[32m+[m[32m  line-height: 1.2;[m
+[32m+[m[32m  color: #a1a1aa;[m
+[32m+[m[32m}[m
+[32m+[m
+ .casker-chat-compose {[m
+   display: flex;[m
+   flex-shrink: 0;[m
+[36m@@ -1785,11 +1793,12 @@[m [mbody {[m
+ }[m
+ [m
+ .casker-request-card.is-selected {[m
+[31m-  border: 2px solid var(--casker-navy);[m
+[31m-  padding: calc(0.75rem - 1px);[m
+[32m+[m[32m  border: 3px solid var(--casker-navy);[m
+[32m+[m[32m  padding: calc(0.75rem - 2px);[m
+   background: linear-gradient(145deg, #edf1f5 0%, #d8e1ea 52%, #becbd7 100%);[m
+   box-shadow:[m
+[31m-    0 4px 14px rgb(11 25 79 / 0.12),[m
+[32m+[m[32m    0 0 0 1px var(--casker-navy),[m
+[32m+[m[32m    0 4px 14px rgb(11 25 79 / 0.16),[m
+     inset 0 1px 0 rgb(255 255 255 / 0.7);[m
+ }[m
+ [m
+[36m@@ -1807,9 +1816,12 @@[m [mbody {[m
+ }[m
+ [m
+ .casker-request-card.is-category-tire.is-selected {[m
+[32m+[m[32m  border: 3px solid var(--casker-navy);[m
+[32m+[m[32m  padding: calc(0.75rem - 2px);[m
+   background: linear-gradient(145deg, #fffbeb 0%, #fde68a 52%, #eab308 100%);[m
+   box-shadow:[m
+[31m-    0 4px 14px rgb(11 25 79 / 0.12),[m
+[32m+[m[32m    0 0 0 1px var(--casker-navy),[m
+[32m+[m[32m    0 4px 14px rgb(11 25 79 / 0.16),[m
+     inset 0 1px 0 rgb(255 255 255 / 0.75);[m
+ }[m
+ [m
+[36m@@ -1826,10 +1838,25 @@[m [mbody {[m
+     inset 0 1px 0 rgb(255 255 255 / 0.7);[m
+ }[m
+ [m
+[31m-.casker-request-card.is-category-towing.is-selected {[m
+[32m+[m[32m.casker-request-card.is-category-towing.is-selected,[m
+[32m+[m[32m.casker-request-card.is-selected.is-category-towing {[m
+[32m+[m[32m  border: 3px solid var(--casker-navy);[m
+[32m+[m[32m  padding: calc(0.75rem - 2px);[m
+   background: linear-gradient(145deg, #fff1f2 0%, #fca5a5 52%, #dc2626 100%);[m
+   box-shadow:[m
+[31m-    0 4px 14px rgb(11 25 79 / 0.12),[m
+[32m+[m[32m    0 0 0 2px var(--casker-navy),[m
+[32m+[m[32m    0 4px 14px rgb(11 25 79 / 0.22),[m
+[32m+[m[32m    inset 0 1px 0 rgb(255 255 255 / 0.75);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.casker-request-card.is-category-towing.is-selected:hover,[m
+[32m+[m[32m.casker-request-card.is-selected.is-category-towing:hover,[m
+[32m+[m[32m.casker-request-card.is-category-towing.is-selected:focus-visible,[m
+[32m+[m[32m.casker-request-card.is-selected.is-category-towing:focus-visible {[m
+[32m+[m[32m  border: 3px solid var(--casker-navy);[m
+[32m+[m[32m  box-shadow:[m
+[32m+[m[32m    0 0 0 2px var(--casker-navy),[m
+[32m+[m[32m    0 4px 14px rgb(11 25 79 / 0.22),[m
+     inset 0 1px 0 rgb(255 255 255 / 0.75);[m
+ }[m
+ [m
+[1mdiff --git a/app/history/page.tsx b/app/history/page.tsx[m
+[1mindex 19f56f9..6d6763c 100644[m
+[1m--- a/app/history/page.tsx[m
+[1m+++ b/app/history/page.tsx[m
+[36m@@ -13,6 +13,10 @@[m [mimport {[m
+   fetchAcceptedAppointments,[m
+   type Appointment,[m
+ } from "@/lib/appointments";[m
+[32m+[m[32mimport {[m
+[32m+[m[32m  getInquiryUserDescription,[m
+[32m+[m[32m  truncateInquiryCardDescription,[m
+[32m+[m[32m} from "@/lib/inquiry-description";[m
+ import {[m
+   fetchCompletedRequests,[m
+   getRequestCategoryCardClass,[m
+[36m@@ -289,6 +293,9 @@[m [mexport default function HistoryPage() {[m
+                       const categoryClass = getRequestCategoryCardClass([m
+                         request.requestCategory,[m
+                       );[m
+[32m+[m[32m                      const cardDescription = truncateInquiryCardDescription([m
+[32m+[m[32m                        getInquiryUserDescription(request.inquiryDescription),[m
+[32m+[m[32m                      );[m
+ [m
+                       return ([m
+                         <button[m
+[36m@@ -310,9 +317,11 @@[m [mexport default function HistoryPage() {[m
+                               <h3 className="text-base font-bold leading-tight text-zinc-900">[m
+                                 {request.vehicleName} {request.year}[m
+                               </h3>[m
+[31m-                              <p className="casker-request-service text-red-600">[m
+[31m-                                {request.service}[m
+[31m-                              </p>[m
+[32m+[m[32m                              {cardDescription ? ([m
+[32m+[m[32m                                <p className="casker-request-service text-red-600">[m
+[32m+[m[32m                                  {cardDescription}[m
+[32m+[m[32m                                </p>[m
+[32m+[m[32m                              ) : null}[m
+                             </div>[m
+                           </div>[m
+ [m
+[1mdiff --git a/app/page.tsx b/app/page.tsx[m
+[1mindex d0569c8..5774760 100644[m
+[1m--- a/app/page.tsx[m
+[1m+++ b/app/page.tsx[m
+[36m@@ -56,15 +56,21 @@[m [mimport {[m
+   cancelRequest,[m
+   completeRequest,[m
+   fetchRequestById,[m
+[32m+[m[32m  acknowledgeCustomerAcceptance,[m
+[32m+[m[32m  acknowledgeInquiry,[m
+[32m+[m[32m  compareRequestsByCreatedAt,[m
+   fetchRequests,[m
+[32m+[m[32m  formatHistoryDateLabel,[m
+   formatRequestCreatedTime,[m
+   hasCustomerRescheduleRequest,[m
+[32m+[m[32m  hasUnseenCustomerAcceptance,[m
+[32m+[m[32m  hasUnseenInquiry,[m
+   getCustomerRescheduleRequestedAt,[m
+   getRequestCategoryCardClass,[m
+[31m-  groupRequestsByCreatedDate,[m
+   matchesRequestSearchQuery,[m
+   sortRequestsByCreatedAt,[m
+   subscribeToRequestChanges,[m
+[32m+[m[32m  toHistoryDateKey,[m
+   type Request,[m
+ } from "@/lib/requests";[m
+ import { SERVICE_DISPLAY_NAME } from "@/lib/service-config";[m
+[36m@@ -83,6 +89,10 @@[m [mimport {[m
+   type VehicleCategoryFilter,[m
+ } from "@/lib/service-location";[m
+ import { getInquiryCategoryAvailability } from "@/lib/inquiry-packages";[m
+[32m+[m[32mimport {[m
+[32m+[m[32m  getInquiryUserDescription,[m
+[32m+[m[32m  truncateInquiryCardDescription,[m
+[32m+[m[32m} from "@/lib/inquiry-description";[m
+ import { getSupabaseErrorMessage } from "@/lib/supabase-error";[m
+ import {[m
+   companyProfileToForm,[m
+[36m@@ -193,6 +203,7 @@[m [mtype ChatMessage = {[m
+   text: string;[m
+   from: "service" | "customer";[m
+   sentAt: Date;[m
+[32m+[m[32m  readAt?: string | null;[m
+ };[m
+ [m
+ function createChatMessage([m
+[36m@@ -287,23 +298,98 @@[m [mfunction ChatPanel({[m
+   onClose,[m
+ }: ChatPanelProps) {[m
+   const [height, setHeight] = useState(CHAT_DEFAULT_HEIGHT);[m
+[31m-  const [messages, setMessages] = useState<ChatMessage[]>(() => [[m
+[31m-    createChatMessage([m
+[31m-      request.inquiryDescription,[m
+[31m-      "customer",[m
+[31m-      new Date(Date.now() - 2 * 60 * 60 * 1000),[m
+[31m-    ),[m
+[31m-  ]);[m
+[32m+[m[32m  const [messages, setMessages] = useState<ChatMessage[]>([]);[m
+   const [draft, setDraft] = useState("");[m
+[32m+[m[32m  const [isSending, setIsSending] = useState(false);[m
+   const messagesEndRef = useRef<HTMLDivElement>(null);[m
+   const resizeStateRef = useRef<{ startY: number; startHeight: number } | null>([m
+     null,[m
+   );[m
+[31m-  const chatTimeline = useMemo(() => buildChatTimeline(messages), [messages]);[m
+[32m+[m
+[32m+[m[32m  const displayMessages = useMemo(() => {[m
+[32m+[m[32m    const inquiry = request.inquiryDescription.trim();[m
+[32m+[m[32m    const seeded = inquiry[m
+[32m+[m[32m      ? [[m
+[32m+[m[32m          createChatMessage([m
+[32m+[m[32m            inquiry,[m
+[32m+[m[32m            "customer",[m
+[32m+[m[32m            request.createdAt ? new Date(request.createdAt) : new Date(),[m
+[32m+[m[32m          ),[m
+[32m+[m[32m        ][m
+[32m+[m[32m      : [];[m
+[32m+[m
+[32m+[m[32m    const hasInquiryAlready = messages.some([m
+[32m+[m[32m      (message) => message.from === "customer" && message.text.trim() === inquiry,[m
+[32m+[m[32m    );[m
+[32m+[m
+[32m+[m[32m    return hasInquiryAlready ? messages : [...seeded, ...messages];[m
+[32m+[m[32m  }, [messages, request.createdAt, request.inquiryDescription]);[m
+[32m+[m
+[32m+[m[32m  const chatTimeline = useMemo(() => buildChatTimeline(displayMessages), [displayMessages]);[m
+[32m+[m
+[32m+[m[32m  const loadMessages = useCallback(async () => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      const response = await fetch("/api/requests/messages/list", {[m
+[32m+[m[32m        method: "POST",[m
+[32m+[m[32m        headers: { "Content-Type": "application/json" },[m
+[32m+[m[32m        body: JSON.stringify({ requestId: request.id }),[m
+[32m+[m[32m      });[m
+[32m+[m[32m      const payload = (await response.json().catch(() => null)) as[m
+[32m+[m[32m        | {[m
+[32m+[m[32m            messages?: Array<{[m
+[32m+[m[32m              id: string;[m
+[32m+[m[32m              senderRole: "service" | "customer";[m
+[32m+[m[32m              body: string;[m
+[32m+[m[32m              createdAt: string;[m
+[32m+[m[32m              readAt?: string | null;[m
+[32m+[m[32m            }>;[m
+[32m+[m[32m          }[m
+[32m+[m[32m        | null;[m
+[32m+[m
+[32m+[m[32m      if (!response.ok || !payload?.messages) {[m
+[32m+[m[32m        return;[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      setMessages([m
+[32m+[m[32m        payload.messages.map((message) => ({[m
+[32m+[m[32m          id: message.id,[m
+[32m+[m[32m          text: message.body,[m
+[32m+[m[32m          from: message.senderRole,[m
+[32m+[m[32m          sentAt: new Date(message.createdAt),[m
+[32m+[m[32m          readAt: message.readAt ?? null,[m
+[32m+[m[32m        })),[m
+[32m+[m[32m      );[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m      console.error("Chat sa nepodarilo načítať:", error);[m
+[32m+[m[32m    }[m
+[32m+[m[32m  }, [request.id]);[m
+[32m+[m
+[32m+[m[32m  const markMessagesRead = useCallback(async () => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      await fetch("/api/requests/messages/read", {[m
+[32m+[m[32m        method: "POST",[m
+[32m+[m[32m        headers: { "Content-Type": "application/json" },[m
+[32m+[m[32m        body: JSON.stringify({ requestId: request.id, reader: "service" }),[m
+[32m+[m[32m      });[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m      console.error("Stav prečítania chatu sa nepodarilo uložiť:", error);[m
+[32m+[m[32m    }[m
+[32m+[m[32m  }, [request.id]);[m
+[32m+[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    void loadMessages();[m
+[32m+[m[32m    void markMessagesRead();[m
+[32m+[m
+[32m+[m[32m    const intervalId = window.setInterval(() => {[m
+[32m+[m[32m      void loadMessages();[m
+[32m+[m[32m    }, 4000);[m
+[32m+[m
+[32m+[m[32m    return () => window.clearInterval(intervalId);[m
+[32m+[m[32m  }, [loadMessages, markMessagesRead]);[m
+ [m
+   useEffect(() => {[m
+     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });[m
+[31m-  }, [messages]);[m
+[32m+[m[32m  }, [displayMessages]);[m
+ [m
+   useEffect(() => {[m
+     const handleMouseMove = (event: MouseEvent) => {[m
+[36m@@ -342,13 +428,34 @@[m [mfunction ChatPanel({[m
+     document.body.style.userSelect = "none";[m
+   };[m
+ [m
+[31m-  const handleSendMessage = (event: React.FormEvent<HTMLFormElement>) => {[m
+[32m+[m[32m  const handleSendMessage = async (event: React.FormEvent<HTMLFormElement>) => {[m
+     event.preventDefault();[m
+     const text = draft.trim();[m
+[31m-    if (!text) return;[m
+[32m+[m[32m    if (!text || isSending) return;[m
+[32m+[m
+[32m+[m[32m    setIsSending(true);[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      const response = await fetch("/api/requests/messages/send", {[m
+[32m+[m[32m        method: "POST",[m
+[32m+[m[32m        headers: { "Content-Type": "application/json" },[m
+[32m+[m[32m        body: JSON.stringify({[m
+[32m+[m[32m          requestId: request.id,[m
+[32m+[m[32m          text,[m
+[32m+[m[32m          senderRole: "service",[m
+[32m+[m[32m        }),[m
+[32m+[m[32m      });[m
+[32m+[m
+[32m+[m[32m      if (!response.ok) {[m
+[32m+[m[32m        throw new Error("Správu sa nepodarilo odoslať.");[m
+[32m+[m[32m      }[m
+ [m
+[31m-    setMessages((current) => [...current, createChatMessage(text, "service")]);[m
+[31m-    setDraft("");[m
+[32m+[m[32m      setDraft("");[m
+[32m+[m[32m      await loadMessages();[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m      console.error("Odoslanie chat správy zlyhalo:", error);[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setIsSending(false);[m
+[32m+[m[32m    }[m
+   };[m
+ [m
+   return ([m
+[36m@@ -411,6 +518,9 @@[m [mfunction ChatPanel({[m
+                   </time>[m
+                 </div>[m
+                 <p className="casker-chat-message-text">{message.text}</p>[m
+[32m+[m[32m                {isOutgoing && message.readAt ? ([m
+[32m+[m[32m                  <span className="casker-chat-message-read">Videné</span>[m
+[32m+[m[32m                ) : null}[m
+               </div>[m
+             );[m
+           })}[m
+[36m@@ -427,8 +537,8 @@[m [mfunction ChatPanel({[m
+           value={draft}[m
+           onChange={(event) => setDraft(event.target.value)}[m
+         />[m
+[31m-        <button type="submit" className="casker-chat-send-btn">[m
+[31m-          Odoslať[m
+[32m+[m[32m        <button type="submit" className="casker-chat-send-btn" disabled={isSending}>[m
+[32m+[m[32m          {isSending ? "Odosielam…" : "Odoslať"}[m
+         </button>[m
+       </form>[m
+     </div>[m
+[36m@@ -609,41 +719,163 @@[m [mfunction CompleteConfirmDialog({[m
+   );[m
+ }[m
+ [m
+[32m+[m[32mtype SidebarEntry = {[m
+[32m+[m[32m  key: string;[m
+[32m+[m[32m  request: Request;[m
+[32m+[m[32m  appointment: Appointment | null;[m
+[32m+[m[32m};[m
+[32m+[m
+[32m+[m[32mfunction compareSidebarEntries(left: SidebarEntry, right: SidebarEntry) {[m
+[32m+[m[32m  const createdCompare = compareRequestsByCreatedAt(left.request, right.request);[m
+[32m+[m[32m  if (createdCompare !== 0) {[m
+[32m+[m[32m    return createdCompare;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  if (left.appointment && right.appointment) {[m
+[32m+[m[32m    const dateCompare = left.appointment.appointment_date.localeCompare([m
+[32m+[m[32m      right.appointment.appointment_date,[m
+[32m+[m[32m    );[m
+[32m+[m[32m    if (dateCompare !== 0) {[m
+[32m+[m[32m      return dateCompare;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    return left.appointment.appointment_time.localeCompare([m
+[32m+[m[32m      right.appointment.appointment_time,[m
+[32m+[m[32m    );[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  return left.key.localeCompare(right.key);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction buildSidebarEntries([m
+[32m+[m[32m  activeState: SidebarState,[m
+[32m+[m[32m  filteredRequests: Request[],[m
+[32m+[m[32m  calendarAppointments: Appointment[],[m
+[32m+[m[32m  requests: Request[],[m
+[32m+[m[32m  pendingByRequestId: Map<string, Appointment>,[m
+[32m+[m[32m  acceptedByRequestId: Map<string, Appointment>,[m
+[32m+[m[32m): SidebarEntry[] {[m
+[32m+[m[32m  if (activeState === "inquiry") {[m
+[32m+[m[32m    return filteredRequests.map((request) => ({[m
+[32m+[m[32m      key: request.id,[m
+[32m+[m[32m      request,[m
+[32m+[m[32m      appointment: null,[m
+[32m+[m[32m    }));[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const requestIds = new Set(filteredRequests.map((request) => request.id));[m
+[32m+[m[32m  const entries: SidebarEntry[] = [];[m
+[32m+[m
+[32m+[m[32m  for (const appointment of calendarAppointments) {[m
+[32m+[m[32m    const request = findRequestForAppointment(appointment, requests);[m
+[32m+[m[32m    if (!request || !requestIds.has(request.id)) {[m
+[32m+[m[32m      continue;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    entries.push({[m
+[32m+[m[32m      key: appointment.id,[m
+[32m+[m[32m      request,[m
+[32m+[m[32m      appointment,[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const coveredRequestIds = new Set(entries.map((entry) => entry.request.id));[m
+[32m+[m[32m  for (const request of filteredRequests) {[m
+[32m+[m[32m    if (coveredRequestIds.has(request.id)) {[m
+[32m+[m[32m      continue;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const pending = pendingByRequestId.get(request.id) ?? null;[m
+[32m+[m[32m    const accepted = acceptedByRequestId.get(request.id) ?? null;[m
+[32m+[m[32m    const appointment =[m
+[32m+[m[32m      activeState === "waiting" ? pending : (accepted ?? pending);[m
+[32m+[m
+[32m+[m[32m    entries.push({[m
+[32m+[m[32m      key: request.id,[m
+[32m+[m[32m      request,[m
+[32m+[m[32m      appointment,[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  return [...entries].sort(compareSidebarEntries);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction groupSidebarEntriesByCreatedDate(entries: SidebarEntry[]) {[m
+[32m+[m[32m  const groups = new Map<string, SidebarEntry[]>();[m
+[32m+[m
+[32m+[m[32m  for (const entry of [...entries].sort(compareSidebarEntries)) {[m
+[32m+[m[32m    const dateKey = toHistoryDateKey(entry.request.createdAt);[m
+[32m+[m[32m    const bucket = groups.get(dateKey) ?? [];[m
+[32m+[m[32m    bucket.push(entry);[m
+[32m+[m[32m    groups.set(dateKey, bucket);[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  return Array.from(groups.entries())[m
+[32m+[m[32m    .sort(([left], [right]) => left.localeCompare(right))[m
+[32m+[m[32m    .map(([dateKey, items]) => ({[m
+[32m+[m[32m      dateKey,[m
+[32m+[m[32m      label: formatHistoryDateLabel(dateKey),[m
+[32m+[m[32m      entries: items,[m
+[32m+[m[32m    }));[m
+[32m+[m[32m}[m
+[32m+[m
+ function SidebarRequestCard({[m
+[32m+[m[32m  entryKey,[m
+   request,[m
+   activeState,[m
+   isSelected,[m
+   cardAppointment,[m
+   hasRescheduleNotification,[m
+[32m+[m[32m  hasAcceptedNotification,[m
+[32m+[m[32m  hasInquiryNotification,[m
+   distanceKm,[m
+   onSelect,[m
+   onCancel,[m
+ }: {[m
+[32m+[m[32m  entryKey: string;[m
+   request: Request;[m
+   activeState: SidebarState;[m
+   isSelected: boolean;[m
+   cardAppointment: Appointment | null;[m
+   hasRescheduleNotification: boolean;[m
+[32m+[m[32m  hasAcceptedNotification: boolean;[m
+[32m+[m[32m  hasInquiryNotification: boolean;[m
+   distanceKm: number;[m
+[31m-  onSelect: (id: string) => void;[m
+[32m+[m[32m  onSelect: (requestId: string, appointmentId?: string) => void;[m
+   onCancel: (request: Request) => void;[m
+ }) {[m
+   const isScheduledCard = activeState === "waiting" || activeState === "done";[m
+   const categoryClass = getRequestCategoryCardClass(request.requestCategory);[m
+[32m+[m[32m  const cardDescription = truncateInquiryCardDescription([m
+[32m+[m[32m    getInquiryUserDescription(request.inquiryDescription),[m
+[32m+[m[32m  );[m
+[32m+[m
+[32m+[m[32m  const attentionClassName = hasRescheduleNotification[m
+[32m+[m[32m    ? " has-reschedule-notification"[m
+[32m+[m[32m    : hasAcceptedNotification[m
+[32m+[m[32m      ? " has-accepted-notification"[m
+[32m+[m[32m      : hasInquiryNotification[m
+[32m+[m[32m        ? " has-inquiry-notification"[m
+[32m+[m[32m        : "";[m
+ [m
+   return ([m
+     <div[m
+[31m-      className={`casker-request-card-wrap${hasRescheduleNotification ? " has-reschedule-notification" : ""}`}[m
+[32m+[m[32m      id={`sidebar-entry-${entryKey}`}[m
+[32m+[m[32m      className={`casker-request-card-wrap${attentionClassName}`}[m
+     >[m
+       <button[m
+         type="button"[m
+         className={`casker-request-card ${isSelected ? "is-selected" : ""}${isScheduledCard ? " has-card-schedule" : ""}${categoryClass ? ` ${categoryClass}` : ""}`}[m
+[31m-        onClick={() => onSelect(request.id)}[m
+[32m+[m[32m        onClick={() => onSelect(request.id, cardAppointment?.id)}[m
+         aria-pressed={isSelected}[m
+         aria-label={[m
+           hasRescheduleNotification[m
+             ? `${request.vehicleName} ${request.year}, zákazník žiada o zmenu termínu`[m
+[31m-            : undefined[m
+[32m+[m[32m            : hasAcceptedNotification[m
+[32m+[m[32m              ? `${request.vehicleName} ${request.year}, zákazník prijal termín`[m
+[32m+[m[32m              : hasInquiryNotification[m
+[32m+[m[32m                ? `${request.vehicleName} ${request.year}, nový dopyt`[m
+[32m+[m[32m                : undefined[m
+         }[m
+       >[m
+         <div className="casker-request-card-main flex w-full items-start gap-2">[m
+[36m@@ -658,7 +890,9 @@[m [mfunction SidebarRequestCard({[m
+             <h3 className="casker-request-card-title">[m
+               {request.vehicleName} {request.year}[m
+             </h3>[m
+[31m-            <p className="casker-request-service text-red-600">{request.service}</p>[m
+[32m+[m[32m            {cardDescription ? ([m
+[32m+[m[32m              <p className="casker-request-service text-red-600">{cardDescription}</p>[m
+[32m+[m[32m            ) : null}[m
+           </div>[m
+         </div>[m
+ [m
+[36m@@ -730,6 +964,7 @@[m [mfunction InquiryDescriptionPanel({[m
+   pendingAppointment,[m
+   acceptedAppointment,[m
+   proposals,[m
+[32m+[m[32m  serviceInfo,[m
+   onCustomerRescheduleRequest,[m
+   onAppointmentUpdated,[m
+ }: {[m
+[36m@@ -737,6 +972,12 @@[m [mfunction InquiryDescriptionPanel({[m
+   pendingAppointment: Appointment | null;[m
+   acceptedAppointment: Appointment | null;[m
+   proposals: AppointmentProposal[];[m
+[32m+[m[32m  serviceInfo?: {[m
+[32m+[m[32m    companyName: string;[m
+[32m+[m[32m    serviceAddress: string;[m
+[32m+[m[32m    serviceCity: string;[m
+[32m+[m[32m    serviceZip: string;[m
+[32m+[m[32m  };[m
+   onCustomerRescheduleRequest: () => Promise<void>;[m
+   onAppointmentUpdated: (requestId: string) => void;[m
+ }) {[m
+[36m@@ -803,7 +1044,10 @@[m [mfunction InquiryDescriptionPanel({[m
+       <div className="casker-inquiry-chat">[m
+         <div className="casker-inquiry-message is-customer">[m
+           <p className="casker-inquiry-message-author">{request.userName}</p>[m
+[31m-          <p className="casker-inquiry-message-text">{request.inquiryDescription}</p>[m
+[32m+[m[32m          <p className="casker-inquiry-message-text">[m
+[32m+[m[32m            {getInquiryUserDescription(request.inquiryDescription) ||[m
+[32m+[m[32m              request.inquiryDescription}[m
+[32m+[m[32m          </p>[m
+         </div>[m
+ [m
+         {proposalTimeline.map((proposal) => ([m
+[36m@@ -904,6 +1148,7 @@[m [mfunction InquiryDescriptionPanel({[m
+       {isInquiry ? ([m
+         <BookingPopover[m
+           request={request}[m
+[32m+[m[32m          serviceInfo={serviceInfo}[m
+           anchorRef={respondBtnRef}[m
+           isOpen={bookingOpen}[m
+           onClose={() => setBookingOpen(false)}[m
+[36m@@ -915,6 +1160,7 @@[m [mfunction InquiryDescriptionPanel({[m
+         <ReschedulePopover[m
+           request={request}[m
+           currentAppointment={pendingAppointment}[m
+[32m+[m[32m          serviceInfo={serviceInfo}[m
+           anchorRef={waitingRescheduleBtnRef}[m
+           isOpen={rescheduleOpen}[m
+           onClose={() => setRescheduleOpen(false)}[m
+[36m@@ -928,6 +1174,7 @@[m [mfunction InquiryDescriptionPanel({[m
+ function RequestDetailPanel({[m
+   request,[m
+   serviceLocation,[m
+[32m+[m[32m  serviceDisplayName,[m
+   pendingAppointment,[m
+   acceptedAppointment,[m
+   proposals,[m
+[36m@@ -937,6 +1184,7 @@[m [mfunction RequestDetailPanel({[m
+ }: {[m
+   request: Request;[m
+   serviceLocation: ServiceLocation;[m
+[32m+[m[32m  serviceDisplayName: string;[m
+   pendingAppointment: Appointment | null;[m
+   acceptedAppointment: Appointment | null;[m
+   proposals: AppointmentProposal[];[m
+[36m@@ -944,6 +1192,12 @@[m [mfunction RequestDetailPanel({[m
+   onRequestCompleted: (requestId: string) => void;[m
+   onCustomerRescheduleRequest: (requestId: string) => Promise<void>;[m
+ }) {[m
+[32m+[m[32m  const appointmentServiceInfo = {[m
+[32m+[m[32m    companyName: serviceDisplayName,[m
+[32m+[m[32m    serviceAddress: serviceLocation.address,[m
+[32m+[m[32m    serviceCity: serviceLocation.city,[m
+[32m+[m[32m    serviceZip: serviceLocation.zipCode,[m
+[32m+[m[32m  };[m
+   const [chatOpen, setChatOpen] = useState(false);[m
+   const [rescheduleOpen, setRescheduleOpen] = useState(false);[m
+   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);[m
+[36m@@ -1068,6 +1322,7 @@[m [mfunction RequestDetailPanel({[m
+           pendingAppointment={pendingAppointment}[m
+           acceptedAppointment={acceptedAppointment}[m
+           proposals={proposals}[m
+[32m+[m[32m          serviceInfo={appointmentServiceInfo}[m
+           onCustomerRescheduleRequest={() => onCustomerRescheduleRequest(request.id)}[m
+           onAppointmentUpdated={onAppointmentCreated}[m
+         />[m
+[36m@@ -1103,10 +1358,17 @@[m [mfunction RequestDetailPanel({[m
+             {request.status !== "inquiry" ? ([m
+               <div className={`casker-detail-actions${isDone ? " is-done" : ""}`}>[m
+                 {isWaiting ? ([m
+[31m-                  <span className="casker-waiting-status-label">[m
+[31m-                    <CalendarClock className="h-3.5 w-3.5" strokeWidth={2.35} />[m
+[31m-                    Termín odoslaný[m
+[31m-                  </span>[m
+[32m+[m[32m                  <button[m
+[32m+[m[32m                    ref={chatBtnRef}[m
+[32m+[m[32m                    type="button"[m
+[32m+[m[32m                    className="casker-chat-btn"[m
+[32m+[m[32m                    onClick={toggleChat}[m
+[32m+[m[32m                    aria-label="Chat"[m
+[32m+[m[32m                    aria-expanded={chatOpen}[m
+[32m+[m[32m                  >[m
+[32m+[m[32m                    <MessageCircle className="h-3.5 w-3.5" strokeWidth={2.35} />[m
+[32m+[m[32m                    Chat[m
+[32m+[m[32m                  </button>[m
+                 ) : isDone ? ([m
+                   <>[m
+                     <button[m
+[36m@@ -1173,6 +1435,7 @@[m [mfunction RequestDetailPanel({[m
+             <ReschedulePopover[m
+               request={request}[m
+               currentAppointment={acceptedAppointment ?? pendingAppointment}[m
+[32m+[m[32m              serviceInfo={appointmentServiceInfo}[m
+               anchorRef={rescheduleBtnRef}[m
+               isOpen={rescheduleOpen}[m
+               onClose={() => setRescheduleOpen(false)}[m
+[36m@@ -1385,6 +1648,9 @@[m [mexport default function Home() {[m
+   const [viewportFocusRequestId, setViewportFocusRequestId] = useState<[m
+     string | null[m
+   >(null);[m
+[32m+[m[32m  const pendingSidebarScrollEntryKeyRef = useRef<string | null>(null);[m
+[32m+[m[32m  const [selectedCalendarAppointmentId, setSelectedCalendarAppointmentId] =[m
+[32m+[m[32m    useState<string | null>(null);[m
+   const [filterOpen, setFilterOpen] = useState(false);[m
+   const [searchRadius, setSearchRadius] = useState(150);[m
+   const [appliedRadius, setAppliedRadius] = useState(150);[m
+[36m@@ -1473,6 +1739,11 @@[m [mexport default function Home() {[m
+     [pendingAppointments, requests],[m
+   );[m
+ [m
+[32m+[m[32m  const inquiryAttentionCount = useMemo([m
+[32m+[m[32m    () => requests.filter((request) => hasUnseenInquiry(request)).length,[m
+[32m+[m[32m    [requests],[m
+[32m+[m[32m  );[m
+[32m+[m
+   const waitingAttentionCount = useMemo([m
+     () =>[m
+       requests.filter([m
+[36m@@ -1486,6 +1757,11 @@[m [mexport default function Home() {[m
+     [requests, pendingByRequestId],[m
+   );[m
+ [m
+[32m+[m[32m  const doneAttentionCount = useMemo([m
+[32m+[m[32m    () => requests.filter((request) => hasUnseenCustomerAcceptance(request)).length,[m
+[32m+[m[32m    [requests],[m
+[32m+[m[32m  );[m
+[32m+[m
+   const proposalsByRequestId = useMemo([m
+     () => buildProposalMap(appointmentProposals),[m
+     [appointmentProposals],[m
+[36m@@ -1523,6 +1799,36 @@[m [mexport default function Home() {[m
+     [acceptedAppointments, pendingAppointments, requests],[m
+   );[m
+ [m
+[32m+[m[32m  const calendarFocusedAppointment = useMemo([m
+[32m+[m[32m    () =>[m
+[32m+[m[32m      calendarAppointments.find([m
+[32m+[m[32m        (appointment) => appointment.id === selectedCalendarAppointmentId,[m
+[32m+[m[32m      ) ?? null,[m
+[32m+[m[32m    [calendarAppointments, selectedCalendarAppointmentId],[m
+[32m+[m[32m  );[m
+[32m+[m
+[32m+[m[32m  const resolveRequestAppointments = useCallback([m
+[32m+[m[32m    (requestId: string) => {[m
+[32m+[m[32m      const pending = pendingByRequestId.get(requestId) ?? null;[m
+[32m+[m[32m      const accepted = acceptedByRequestId.get(requestId) ?? null;[m
+[32m+[m[32m      const focused =[m
+[32m+[m[32m        calendarFocusedAppointment?.request_id === requestId[m
+[32m+[m[32m          ? calendarFocusedAppointment[m
+[32m+[m[32m          : null;[m
+[32m+[m
+[32m+[m[32m      if (!focused) {[m
+[32m+[m[32m        return { pending, accepted };[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      if (focused.status === "accepted") {[m
+[32m+[m[32m        return { pending, accepted: focused };[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      return { pending: focused, accepted };[m
+[32m+[m[32m    },[m
+[32m+[m[32m    [acceptedByRequestId, calendarFocusedAppointment, pendingByRequestId],[m
+[32m+[m[32m  );[m
+[32m+[m
+   useEffect(() => {[m
+     const savedLocation = loadServiceLocation();[m
+     setServiceLocation(savedLocation);[m
+[36m@@ -1634,11 +1940,65 @@[m [mexport default function Home() {[m
+     [activeSearchQuery, baseFilteredRequests, getSearchAppointment],[m
+   );[m
+ [m
+[31m-  const groupedRequests = useMemo([m
+[31m-    () => groupRequestsByCreatedDate(filteredRequests),[m
+[31m-    [filteredRequests],[m
+[32m+[m[32m  const sidebarEntries = useMemo([m
+[32m+[m[32m    () =>[m
+[32m+[m[32m      buildSidebarEntries([m
+[32m+[m[32m        activeState,[m
+[32m+[m[32m        filteredRequests,[m
+[32m+[m[32m        calendarAppointments,[m
+[32m+[m[32m        requests,[m
+[32m+[m[32m        pendingByRequestId,[m
+[32m+[m[32m        acceptedByRequestId,[m
+[32m+[m[32m      ),[m
+[32m+[m[32m    [[m
+[32m+[m[32m      activeState,[m
+[32m+[m[32m      filteredRequests,[m
+[32m+[m[32m      calendarAppointments,[m
+[32m+[m[32m      requests,[m
+[32m+[m[32m      pendingByRequestId,[m
+[32m+[m[32m      acceptedByRequestId,[m
+[32m+[m[32m    ],[m
+   );[m
+ [m
+[32m+[m[32m  const filteredSidebarEntries = useMemo([m
+[32m+[m[32m    () =>[m
+[32m+[m[32m      activeSearchQuery[m
+[32m+[m[32m        ? sidebarEntries.filter((entry) =>[m
+[32m+[m[32m            matchesRequestSearchQuery([m
+[32m+[m[32m              entry.request,[m
+[32m+[m[32m              activeSearchQuery,[m
+[32m+[m[32m              entry.appointment ?? getSearchAppointment(entry.request.id),[m
+[32m+[m[32m            ),[m
+[32m+[m[32m          )[m
+[32m+[m[32m        : sidebarEntries,[m
+[32m+[m[32m    [activeSearchQuery, getSearchAppointment, sidebarEntries],[m
+[32m+[m[32m  );[m
+[32m+[m
+[32m+[m[32m  const groupedSidebarEntries = useMemo([m
+[32m+[m[32m    () => groupSidebarEntriesByCreatedDate(filteredSidebarEntries),[m
+[32m+[m[32m    [filteredSidebarEntries],[m
+[32m+[m[32m  );[m
+[32m+[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    const entryKey = pendingSidebarScrollEntryKeyRef.current;[m
+[32m+[m[32m    if (!entryKey) {[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const card = document.getElementById(`sidebar-entry-${entryKey}`);[m
+[32m+[m[32m    if (!card) {[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    pendingSidebarScrollEntryKeyRef.current = null;[m
+[32m+[m[32m    card.scrollIntoView({ behavior: "smooth", block: "center" });[m
+[32m+[m[32m  }, [[m
+[32m+[m[32m    selectedRequestId,[m
+[32m+[m[32m    selectedCalendarAppointmentId,[m
+[32m+[m[32m    activeState,[m
+[32m+[m[32m    filteredSidebarEntries,[m
+[32m+[m[32m  ]);[m
+[32m+[m
+   const selectedRequest = useMemo(() => {[m
+     if (!selectedRequestId) return null;[m
+     const request = requests.find((r) => r.id === selectedRequestId);[m
+[36m@@ -1673,7 +2033,15 @@[m [mexport default function Home() {[m
+     getSearchAppointment,[m
+   ]);[m
+ [m
+[31m-  const handleSelectRequest = (id: string) => {[m
+[32m+[m[32m  const handleSelectRequest = ([m
+[32m+[m[32m    id: string,[m
+[32m+[m[32m    source: "sidebar" | "calendar" = "sidebar",[m
+[32m+[m[32m    appointmentId?: string | null,[m
+[32m+[m[32m  ) => {[m
+[32m+[m[32m    if (source === "sidebar") {[m
+[32m+[m[32m      setSelectedCalendarAppointmentId(appointmentId ?? null);[m
+[32m+[m[32m    }[m
+[32m+[m
+     setSelectedRequestId(id);[m
+     const request = requests.find((item) => item.id === id);[m
+     if (request && shouldShowRequestOnMap(request)) {[m
+[36m@@ -1683,9 +2051,40 @@[m [mexport default function Home() {[m
+       setMapFocusedRequestId(null);[m
+       setViewportFocusRequestId(null);[m
+     }[m
+[32m+[m
+[32m+[m[32m    if (request && hasUnseenCustomerAcceptance(request)) {[m
+[32m+[m[32m      const seenAt = new Date().toISOString();[m
+[32m+[m[32m      setRequests((current) =>[m
+[32m+[m[32m        current.map((item) =>[m
+[32m+[m[32m          item.id === id ? { ...item, serviceAcceptedSeenAt: seenAt } : item,[m
+[32m+[m[32m        ),[m
+[32m+[m[32m      );[m
+[32m+[m[32m      void acknowledgeCustomerAcceptance(id).catch((error) => {[m
+[32m+[m[32m        console.warn([m
+[32m+[m[32m          "Potvrdenie notifikácie prijatého termínu zlyhalo:",[m
+[32m+[m[32m          getSupabaseErrorMessage(error),[m
+[32m+[m[32m        );[m
+[32m+[m[32m      });[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    if (request && hasUnseenInquiry(request)) {[m
+[32m+[m[32m      const seenAt = new Date().toISOString();[m
+[32m+[m[32m      setRequests((current) =>[m
+[32m+[m[32m        current.map((item) =>[m
+[32m+[m[32m          item.id === id ? { ...item, serviceInquirySeenAt: seenAt } : item,[m
+[32m+[m[32m        ),[m
+[32m+[m[32m      );[m
+[32m+[m[32m      void acknowledgeInquiry(id).catch((error) => {[m
+[32m+[m[32m        console.warn([m
+[32m+[m[32m          "Potvrdenie notifikácie nového dopytu zlyhalo:",[m
+[32m+[m[32m          getSupabaseErrorMessage(error),[m
+[32m+[m[32m        );[m
+[32m+[m[32m      });[m
+[32m+[m[32m    }[m
+   };[m
+ [m
+   const handleMapMarkerSelect = (id: string | null) => {[m
+[32m+[m[32m    setSelectedCalendarAppointmentId(null);[m
+     setMapFocusedRequestId(id);[m
+     setViewportFocusRequestId(null);[m
+     setSelectedRequestId(id);[m
+[36m@@ -1694,6 +2093,7 @@[m [mexport default function Home() {[m
+   const handleStateChange = (state: SidebarState) => {[m
+     setActiveState(state);[m
+     setSelectedRequestId(null);[m
+[32m+[m[32m    setSelectedCalendarAppointmentId(null);[m
+     setMapFocusedRequestId(null);[m
+     setViewportFocusRequestId(null);[m
+     setFilterOpen(false);[m
+[36m@@ -1835,14 +2235,10 @@[m [mexport default function Home() {[m
+     ) {[m
+       setActiveState(matchedRequest.status);[m
+     }[m
+[31m-    setSelectedRequestId(matchedRequest.id);[m
+[31m-    if (shouldShowRequestOnMap(matchedRequest)) {[m
+[31m-      setMapFocusedRequestId(matchedRequest.id);[m
+[31m-      setViewportFocusRequestId(matchedRequest.id);[m
+[31m-    } else {[m
+[31m-      setMapFocusedRequestId(null);[m
+[31m-      setViewportFocusRequestId(null);[m
+[31m-    }[m
+[32m+[m
+[32m+[m[32m    setSelectedCalendarAppointmentId(appointment.id);[m
+[32m+[m[32m    pendingSidebarScrollEntryKeyRef.current = appointment.id;[m
+[32m+[m[32m    handleSelectRequest(matchedRequest.id, "calendar");[m
+   };[m
+ [m
+   const handleAppointmentCreated = (requestId: string) => {[m
+[36m@@ -1970,8 +2366,15 @@[m [mexport default function Home() {[m
+               {STATE_ORDER.map((state) => {[m
+                 const { Icon, label } = STATE_CONFIG[state];[m
+                 const isActive = activeState === state;[m
+[31m-                const showWaitingBadge =[m
+[31m-                  state === "waiting" && waitingAttentionCount > 0;[m
+[32m+[m[32m                const attentionCount =[m
+[32m+[m[32m                  state === "inquiry"[m
+[32m+[m[32m                    ? inquiryAttentionCount[m
+[32m+[m[32m                    : state === "waiting"[m
+[32m+[m[32m                      ? waitingAttentionCount[m
+[32m+[m[32m                      : state === "done"[m
+[32m+[m[32m                        ? doneAttentionCount[m
+[32m+[m[32m                        : 0;[m
+[32m+[m[32m                const showAttentionBadge = attentionCount > 0;[m
+ [m
+                 return ([m
+                   <button[m
+[36m@@ -1980,18 +2383,24 @@[m [mexport default function Home() {[m
+                     className="casker-state-btn"[m
+                     onClick={() => handleStateChange(state)}[m
+                     aria-label={[m
+[31m-                      showWaitingBadge[m
+[31m-                        ? `${label}, ${waitingAttentionCount} dopytov vyžaduje pozornosť`[m
+[32m+[m[32m                      showAttentionBadge[m
+[32m+[m[32m                        ? `${label}, ${attentionCount} ${[m
+[32m+[m[32m                            state === "inquiry"[m
+[32m+[m[32m                              ? "nových dopytov"[m
+[32m+[m[32m                              : state === "done"[m
+[32m+[m[32m                                ? "nových prijatých termínov"[m
+[32m+[m[32m                                : "dopytov vyžaduje pozornosť"[m
+[32m+[m[32m                          }`[m
+                         : label[m
+                     }[m
+                     aria-pressed={isActive}[m
+                   >[m
+[31m-                    {showWaitingBadge ? ([m
+[32m+[m[32m                    {showAttentionBadge ? ([m
+                       <span[m
+                         className="casker-state-notification-badge"[m
+                         aria-hidden="true"[m
+                       >[m
+[31m-                        {waitingAttentionCount}[m
+[32m+[m[32m                        {attentionCount}[m
+                       </span>[m
+                     ) : null}[m
+                     <span[m
+[36m@@ -2071,47 +2480,60 @@[m [mexport default function Home() {[m
+           </div>[m
+ [m
+           <div className="casker-request-list">[m
+[31m-            {filteredRequests.length === 0 ? ([m
+[32m+[m[32m            {filteredSidebarEntries.length === 0 ? ([m
+               <p className="py-6 text-center text-sm text-zinc-500">[m
+                 {activeSearchQuery && baseFilteredRequests.length > 0[m
+                   ? `Nenašli sme dopyty pre „${activeSearchQuery}“`[m
+                   : "Žiadne dopyty pre zvolený filter"}[m
+               </p>[m
+             ) : ([m
+[31m-              groupedRequests.map((group) => ([m
+[32m+[m[32m              groupedSidebarEntries.map((group) => ([m
+                 <section key={group.dateKey} className="casker-request-date-group">[m
+                   <h3 className="casker-request-date-label">{group.label}</h3>[m
+                   <div className="casker-request-date-cards">[m
+[31m-                    {group.requests.map((request) => {[m
+[31m-                      const isSelected = selectedRequestId === request.id;[m
+[31m-                      const pendingAppointment = pendingByRequestId.get(request.id);[m
+[31m-                      const acceptedAppointment = acceptedByRequestId.get(request.id);[m
+[32m+[m[32m                    {group.entries.map((entry) => {[m
+[32m+[m[32m                      const { request, appointment, key } = entry;[m
+[32m+[m[32m                      const isSelected = appointment[m
+[32m+[m[32m                        ? selectedCalendarAppointmentId === appointment.id[m
+[32m+[m[32m                        : selectedRequestId === request.id &&[m
+[32m+[m[32m                          selectedCalendarAppointmentId === null;[m
+                       const cardAppointment =[m
+[31m-                        activeState === "waiting"[m
+[31m-                          ? pendingAppointment[m
+[32m+[m[32m                        appointment ??[m
+[32m+[m[32m                        (activeState === "waiting"[m
+[32m+[m[32m                          ? (pendingByRequestId.get(request.id) ?? null)[m
+                           : activeState === "done"[m
+[31m-                            ? (acceptedAppointment ?? pendingAppointment)[m
+[31m-                            : null;[m
+[32m+[m[32m                            ? (acceptedByRequestId.get(request.id) ??[m
+[32m+[m[32m                              pendingByRequestId.get(request.id) ??[m
+[32m+[m[32m                              null)[m
+[32m+[m[32m                            : null);[m
+[32m+[m[32m                      const pendingAppointment = pendingByRequestId.get(request.id) ?? null;[m
+ [m
+                       return ([m
+                         <SidebarRequestCard[m
+[31m-                          key={request.id}[m
+[32m+[m[32m                          key={key}[m
+[32m+[m[32m                          entryKey={key}[m
+                           request={request}[m
+                           activeState={activeState}[m
+                           isSelected={isSelected}[m
+[31m-                          cardAppointment={cardAppointment ?? null}[m
+[32m+[m[32m                          cardAppointment={cardAppointment}[m
+                           hasRescheduleNotification={[m
+                             activeState === "waiting" &&[m
+[31m-                            hasCustomerRescheduleRequest([m
+[31m-                              request,[m
+[31m-                              pendingAppointment,[m
+[31m-                            )[m
+[32m+[m[32m                            hasCustomerRescheduleRequest(request, pendingAppointment)[m
+[32m+[m[32m                          }[m
+[32m+[m[32m                          hasAcceptedNotification={[m
+[32m+[m[32m                            activeState === "done" &&[m
+[32m+[m[32m                            hasUnseenCustomerAcceptance(request)[m
+[32m+[m[32m                          }[m
+[32m+[m[32m                          hasInquiryNotification={[m
+[32m+[m[32m                            activeState === "inquiry" && hasUnseenInquiry(request)[m
+                           }[m
+                           distanceKm={getRequestDistanceFromService([m
+                             request,[m
+                             appliedServiceLocation,[m
+                           )}[m
+[31m-                          onSelect={handleSelectRequest}[m
+[32m+[m[32m                          onSelect={(requestId, appointmentId) =>[m
+[32m+[m[32m                            handleSelectRequest(requestId, "sidebar", appointmentId)[m
+[32m+[m[32m                          }[m
+                           onCancel={handleRequestCancelClick}[m
+                         />[m
+                       );[m
+[36m@@ -2143,6 +2565,7 @@[m [mexport default function Home() {[m
+           onToggle={() => setCalendarOpen((open) => !open)}[m
+           appointments={calendarAppointments}[m
+           requests={requests}[m
+[32m+[m[32m          selectedAppointmentId={selectedCalendarAppointmentId}[m
+           onSelectAppointment={handleAppointmentSelect}[m
+           onRefresh={refreshDashboardData}[m
+         >[m
+[36m@@ -2168,8 +2591,13 @@[m [mexport default function Home() {[m
+               <RequestDetailPanel[m
+                 request={selectedRequest}[m
+                 serviceLocation={appliedServiceLocation}[m
+[31m-                pendingAppointment={pendingByRequestId.get(selectedRequest.id) ?? null}[m
+[31m-                acceptedAppointment={acceptedByRequestId.get(selectedRequest.id) ?? null}[m
+[32m+[m[32m                serviceDisplayName={companyDisplayName}[m
+[32m+[m[32m                pendingAppointment={[m
+[32m+[m[32m                  resolveRequestAppointments(selectedRequest.id).pending[m
+[32m+[m[32m                }[m
+[32m+[m[32m                acceptedAppointment={[m
+[32m+[m[32m                  resolveRequestAppointments(selectedRequest.id).accepted[m
+[32m+[m[32m                }[m
+                 proposals={proposalsByRequestId.get(selectedRequest.id) ?? []}[m
+                 onAppointmentCreated={handleAppointmentCreated}[m
+                 onRequestCompleted={handleRequestCompleted}[m
+[1mdiff --git a/app/request-card-attention.css b/app/request-card-attention.css[m
+[1mindex 6fddfae..2320fd9 100644[m
+[1m--- a/app/request-card-attention.css[m
+[1m+++ b/app/request-card-attention.css[m
+[36m@@ -26,3 +26,43 @@[m
+ .casker-inquiry-message.is-reschedule-alert .casker-inquiry-reschedule-row {[m
+   padding-right: 1.25rem;[m
+ }[m
+[32m+[m
+[32m+[m[32m.casker-request-card-wrap.has-accepted-notification {[m
+[32m+[m[32m  border-radius: 1rem;[m
+[32m+[m[32m  box-shadow: 0 0 0 2px #16a34a;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.casker-request-card-wrap.has-accepted-notification .casker-request-card {[m
+[32m+[m[32m  border: 2px solid #16a34a;[m
+[32m+[m[32m  padding: calc(0.75rem - 1px);[m
+[32m+[m[32m  background: linear-gradient(145deg, #ecfdf3 0%, #d1fae5 52%, #bbf7d0 100%);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.casker-request-card-wrap.has-accepted-notification .casker-request-card:hover {[m
+[32m+[m[32m  border-color: #16a34a;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.casker-request-card-wrap.has-accepted-notification .casker-request-card.is-selected {[m
+[32m+[m[32m  border: 2px solid #16a34a;[m
+[32m+[m[32m  padding: calc(0.75rem - 1px);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.casker-request-card-wrap.has-inquiry-notification {[m
+[32m+[m[32m  border-radius: 1rem;[m
+[32m+[m[32m  box-shadow: 0 0 0 2px #6c9cbd;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.casker-request-card-wrap.has-inquiry-notification .casker-request-card {[m
+[32m+[m[32m  border: 2px solid #6c9cbd;[m
+[32m+[m[32m  padding: calc(0.75rem - 1px);[m
+[32m+[m[32m  background: linear-gradient(145deg, #f0f7fc 0%, #dbeaf5 52%, #c5dff0 100%);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.casker-request-card-wrap.has-inquiry-notification .casker-request-card:hover {[m
+[32m+[m[32m  border-color: #6c9cbd;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.casker-request-card-wrap.has-inquiry-notification .casker-request-card.is-selected {[m
+[32m+[m[32m  border: 2px solid #6c9cbd;[m
+[32m+[m[32m  padding: calc(0.75rem - 1px);[m
+[32m+[m[32m}[m
+[1mdiff --git a/lib/appointments.ts b/lib/appointments.ts[m
+[1mindex f24c485..50eea38 100644[m
+[1m--- a/lib/appointments.ts[m
+[1m+++ b/lib/appointments.ts[m
+[36m@@ -1,3 +1,4 @@[m
+[32m+[m[32mimport { getSupabaseServiceClient } from "./supabase-service";[m
+ import { supabase } from "./supabase";[m
+ import {[m
+   clearRequestRescheduleRequested,[m
+[36m@@ -11,6 +12,13 @@[m [mimport {[m
+ [m
+ export type AppointmentStatus = "pending" | "accepted" | "rejected";[m
+ [m
+[32m+[m[32mexport type AppointmentServiceInfo = {[m
+[32m+[m[32m  companyName: string;[m
+[32m+[m[32m  serviceAddress: string;[m
+[32m+[m[32m  serviceCity: string;[m
+[32m+[m[32m  serviceZip: string;[m
+[32m+[m[32m};[m
+[32m+[m
+ export type Appointment = {[m
+   id: string;[m
+   request_id?: string | null;[m
+[36m@@ -20,6 +28,10 @@[m [mexport type Appointment = {[m
+   appointment_time: string;[m
+   status: AppointmentStatus;[m
+   message?: string | null;[m
+[32m+[m[32m  companyName?: string | null;[m
+[32m+[m[32m  serviceAddress?: string | null;[m
+[32m+[m[32m  serviceCity?: string | null;[m
+[32m+[m[32m  serviceZip?: string | null;[m
+   reschedule_requested_at?: string | null;[m
+   created_at?: string;[m
+ };[m
+[36m@@ -40,7 +52,7 @@[m [mconst APPOINTMENT_PROPOSAL_SELECT_FIELDS =[m
+   "id, request_id, appointment_date, appointment_time, message, sent_at, proposal_kind";[m
+ [m
+ const APPOINTMENT_SELECT_FIELDS =[m
+[31m-  "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, message, reschedule_requested_at, created_at";[m
+[32m+[m[32m  "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, message, company_name, service_address, service_city, service_zip, reschedule_requested_at, created_at";[m
+ [m
+ const APPOINTMENT_SELECT_FIELDS_LEGACY =[m
+   "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, message, created_at";[m
+[36m@@ -74,14 +86,21 @@[m [mexport function formatAppointmentLabel(appointment: Appointment) {[m
+   return appointment.vehicle_info;[m
+ }[m
+ [m
+[32m+[m[32mfunction isPlaceholderVehicleSpec(value: string) {[m
+[32m+[m[32m  const normalized = value.trim();[m
+[32m+[m[32m  if (!normalized) return true;[m
+[32m+[m
+[32m+[m[32m  return /^[—–\-.\s/]+$/u.test(normalized);[m
+[32m+[m[32m}[m
+[32m+[m
+ export function formatCalendarPowerLabel(power: string) {[m
+   const trimmed = power.trim();[m
+[31m-  if (!trimmed) return "";[m
+[32m+[m[32m  if (isPlaceholderVehicleSpec(trimmed)) return "";[m
+ [m
+   const number = trimmed.replace(/\s*kW\s*/gi, "").trim();[m
+[31m-  if (!number) return trimmed;[m
+[32m+[m[32m  if (isPlaceholderVehicleSpec(number)) return "";[m
+ [m
+[31m-  return `${number} KW`;[m
+[32m+[m[32m  return `${number} kW`;[m
+ }[m
+ [m
+ export function formatCalendarAppointmentLabel([m
+[36m@@ -90,12 +109,20 @@[m [mexport function formatCalendarAppointmentLabel([m
+ ) {[m
+   if (!request) return appointment.vehicle_info;[m
+ [m
+[32m+[m[32m  const engine =[m
+[32m+[m[32m    request.engine.trim() &&[m
+[32m+[m[32m    request.engine.trim().toLowerCase() !== request.vehicleName.trim().toLowerCase()[m
+[32m+[m[32m      ? request.engine[m
+[32m+[m[32m      : null;[m
+[32m+[m
+   return [[m
+     request.vehicleName,[m
+[31m-    request.engine,[m
+[32m+[m[32m    engine,[m
+     formatCalendarPowerLabel(request.power),[m
+     String(request.year),[m
+[31m-  ].join(", ");[m
+[32m+[m[32m  ][m
+[32m+[m[32m    .filter(Boolean)[m
+[32m+[m[32m    .join(", ");[m
+ }[m
+ [m
+ export function appointmentDateTime(appointment: Appointment) {[m
+[36m@@ -184,6 +211,47 @@[m [mexport function formatAppointmentSchedule(appointment: Appointment) {[m
+   return `${formatAppointmentDisplayDate(appointment.appointment_date)} · ${formatAppointmentDisplayTime(appointment.appointment_time)}`;[m
+ }[m
+ [m
+[32m+[m[32mexport function formatAppointmentServiceAddress([m
+[32m+[m[32m  appointment: Pick<Appointment, "serviceAddress" | "serviceCity" | "serviceZip">,[m
+[32m+[m[32m) {[m
+[32m+[m[32m  const street = appointment.serviceAddress?.trim() ?? "";[m
+[32m+[m[32m  const city = appointment.serviceCity?.trim() ?? "";[m
+[32m+[m[32m  const zip = appointment.serviceZip?.trim() ?? "";[m
+[32m+[m[32m  const cityLine = [zip, city].filter(Boolean).join(" ").trim();[m
+[32m+[m
+[32m+[m[32m  return [street, cityLine].filter(Boolean).join(", ");[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction mapAppointmentRow(row: Record<string, unknown>): Appointment {[m
+[32m+[m[32m  return {[m
+[32m+[m[32m    id: String(row.id),[m
+[32m+[m[32m    request_id: (row.request_id as string | null) ?? null,[m
+[32m+[m[32m    customer_name: String(row.customer_name),[m
+[32m+[m[32m    vehicle_info: String(row.vehicle_info),[m
+[32m+[m[32m    appointment_date: String(row.appointment_date),[m
+[32m+[m[32m    appointment_time: String(row.appointment_time),[m
+[32m+[m[32m    status: row.status as AppointmentStatus,[m
+[32m+[m[32m    message: (row.message as string | null) ?? null,[m
+[32m+[m[32m    companyName: (row.company_name as string | null) ?? null,[m
+[32m+[m[32m    serviceAddress: (row.service_address as string | null) ?? null,[m
+[32m+[m[32m    serviceCity: (row.service_city as string | null) ?? null,[m
+[32m+[m[32m    serviceZip: (row.service_zip as string | null) ?? null,[m
+[32m+[m[32m    reschedule_requested_at: (row.reschedule_requested_at as string | null) ?? null,[m
+[32m+[m[32m    created_at: (row.created_at as string | undefined) ?? undefined,[m
+[32m+[m[32m  };[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction buildServiceInfoPayload(serviceInfo?: AppointmentServiceInfo) {[m
+[32m+[m[32m  if (!serviceInfo) return {};[m
+[32m+[m
+[32m+[m[32m  return {[m
+[32m+[m[32m    company_name: serviceInfo.companyName.trim() || null,[m
+[32m+[m[32m    service_address: serviceInfo.serviceAddress.trim() || null,[m
+[32m+[m[32m    service_city: serviceInfo.serviceCity.trim() || null,[m
+[32m+[m[32m    service_zip: serviceInfo.serviceZip.trim() || null,[m
+[32m+[m[32m  };[m
+[32m+[m[32m}[m
+[32m+[m
+ export function formatProposalSchedule([m
+   proposal: Pick<AppointmentProposal, "appointment_date" | "appointment_time">,[m
+ ) {[m
+[36m@@ -401,6 +469,7 @@[m [mexport async function createPendingAppointment(input: {[m
+   appointmentDate: string;[m
+   appointmentTime: string;[m
+   message: string;[m
+[32m+[m[32m  serviceInfo?: AppointmentServiceInfo;[m
+ }) {[m
+   const validationError = getAppointmentDateTimeValidationError([m
+     input.appointmentDate,[m
+[36m@@ -420,13 +489,21 @@[m [mexport async function createPendingAppointment(input: {[m
+     appointment_time: normalizeAppointmentTime(input.appointmentTime),[m
+     message: input.message.trim(),[m
+     status: "pending" as const,[m
+[32m+[m[32m    ...buildServiceInfoPayload(input.serviceInfo),[m
+   };[m
+ [m
+   let { error } = await supabase.from("appointments").insert(appointmentPayload);[m
+ [m
+   if (error?.code === "PGRST204") {[m
+[31m-    const { request_id: _requestId, message: _message, ...legacyPayload } =[m
+[31m-      appointmentPayload;[m
+[32m+[m[32m    const {[m
+[32m+[m[32m      request_id: _requestId,[m
+[32m+[m[32m      message: _message,[m
+[32m+[m[32m      company_name: _companyName,[m
+[32m+[m[32m      service_address: _serviceAddress,[m
+[32m+[m[32m      service_city: _serviceCity,[m
+[32m+[m[32m      service_zip: _serviceZip,[m
+[32m+[m[32m      ...legacyPayload[m
+[32m+[m[32m    } = appointmentPayload;[m
+     ({ error } = await supabase.from("appointments").insert(legacyPayload));[m
+   }[m
+ [m
+[36m@@ -453,6 +530,7 @@[m [mexport async function rescheduleAppointment(input: {[m
+   appointmentDate: string;[m
+   appointmentTime: string;[m
+   message: string;[m
+[32m+[m[32m  serviceInfo?: AppointmentServiceInfo;[m
+ }) {[m
+   const validationError = getAppointmentDateTimeValidationError([m
+     input.appointmentDate,[m
+[36m@@ -472,6 +550,7 @@[m [mexport async function rescheduleAppointment(input: {[m
+     appointment_time: normalizeAppointmentTime(input.appointmentTime),[m
+     message: input.message.trim(),[m
+     status: "pending" as const,[m
+[32m+[m[32m    ...buildServiceInfoPayload(input.serviceInfo),[m
+   };[m
+ [m
+   const { data: existingRows, error: findError } = await supabase[m
+[36m@@ -633,12 +712,159 @@[m [mexport async function fetchPendingAppointments() {[m
+       .eq("status", "pending")[m
+       .order("created_at", { ascending: false });[m
+     if (fallback.error) throw fallback.error;[m
+[31m-    return (fallback.data ?? []) as Appointment[];[m
+[32m+[m[32m    return (fallback.data ?? []).map((row) => mapAppointmentRow(row as Record<string, unknown>));[m
+   }[m
+ [m
+   if (error) throw error;[m
+ [m
+[31m-  return (data ?? []) as Appointment[];[m
+[32m+[m[32m  return (data ?? []).map((row) => mapAppointmentRow(row as Record<string, unknown>));[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport async function fetchAppointmentsForRequestIds(requestIds: string[]) {[m
+[32m+[m[32m  const ids = Array.from(new Set(requestIds.map((id) => id.trim()).filter(Boolean)));[m
+[32m+[m[32m  if (ids.length === 0) return [];[m
+[32m+[m
+[32m+[m[32m  const { data, error } = await supabase[m
+[32m+[m[32m    .from("appointments")[m
+[32m+[m[32m    .select(APPOINTMENT_SELECT_FIELDS)[m
+[32m+[m[32m    .in("request_id", ids)[m
+[32m+[m[32m    .in("status", ["pending", "accepted"])[m
+[32m+[m[32m    .order("created_at", { ascending: true });[m
+[32m+[m
+[32m+[m[32m  if (error?.code === "PGRST204") {[m
+[32m+[m[32m    const fallback = await supabase[m
+[32m+[m[32m      .from("appointments")[m
+[32m+[m[32m      .select(APPOINTMENT_SELECT_FIELDS_LEGACY)[m
+[32m+[m[32m      .in("request_id", ids)[m
+[32m+[m[32m      .in("status", ["pending", "accepted"])[m
+[32m+[m[32m      .order("created_at", { ascending: true });[m
+[32m+[m[32m    if (fallback.error) throw fallback.error;[m
+[32m+[m[32m    return (fallback.data ?? []).map((row) => mapAppointmentRow(row as Record<string, unknown>));[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  if (error) throw error;[m
+[32m+[m
+[32m+[m[32m  return (data ?? []).map((row) => mapAppointmentRow(row as Record<string, unknown>));[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport async function acceptCustomerAppointment(appointmentId: string) {[m
+[32m+[m[32m  const updatedAt = new Date().toISOString();[m
+[32m+[m[32m  const { data, error } = await supabase[m
+[32m+[m[32m    .from("appointments")[m
+[32m+[m[32m    .update({ status: "accepted" })[m
+[32m+[m[32m    .eq("id", appointmentId)[m
+[32m+[m[32m    .select("id, request_id, status")[m
+[32m+[m[32m    .maybeSingle();[m
+[32m+[m
+[32m+[m[32m  if (error) throw error;[m
+[32m+[m[32m  if (!data?.request_id) {[m
+[32m+[m[32m    throw new Error("Termín sa nepodarilo prijať.");[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  let { error: requestError } = await supabase[m
+[32m+[m[32m    .from("requests")[m
+[32m+[m[32m    .update({[m
+[32m+[m[32m      status: "done",[m
+[32m+[m[32m      updated_at: updatedAt,[m
+[32m+[m[32m      customer_accepted_at: updatedAt,[m
+[32m+[m[32m      service_accepted_seen_at: null,[m
+[32m+[m[32m    })[m
+[32m+[m[32m    .eq("id", data.request_id)[m
+[32m+[m[32m    .in("status", ["inquiry", "waiting"]);[m
+[32m+[m
+[32m+[m[32m  if (requestError?.code === "PGRST204") {[m
+[32m+[m[32m    ({ error: requestError } = await supabase[m
+[32m+[m[32m      .from("requests")[m
+[32m+[m[32m      .update({ status: "done", updated_at: updatedAt })[m
+[32m+[m[32m      .eq("id", data.request_id)[m
+[32m+[m[32m      .in("status", ["inquiry", "waiting"]));[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  if (requestError) throw requestError;[m
+[32m+[m
+[32m+[m[32m  return data.request_id as string;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32masync function syncRequestAfterRejectedOffers(requestId: string, updatedAt: string) {[m
+[32m+[m[32m  const db = getSupabaseServiceClient();[m
+[32m+[m
+[32m+[m[32m  const { data: activeAppointments, error: activeError } = await db[m
+[32m+[m[32m    .from("appointments")[m
+[32m+[m[32m    .select("id")[m
+[32m+[m[32m    .eq("request_id", requestId)[m
+[32m+[m[32m    .in("status", ["pending", "accepted"]);[m
+[32m+[m
+[32m+[m[32m  if (activeError) throw activeError;[m
+[32m+[m
+[32m+[m[32m  if (activeAppointments && activeAppointments.length > 0) {[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  let { error: requestError } = await db[m
+[32m+[m[32m    .from("requests")[m
+[32m+[m[32m    .update({[m
+[32m+[m[32m      status: "inquiry",[m
+[32m+[m[32m      updated_at: updatedAt,[m
+[32m+[m[32m      reschedule_requested_at: null,[m
+[32m+[m[32m    })[m
+[32m+[m[32m    .eq("id", requestId)[m
+[32m+[m[32m    .in("status", ["waiting", "done"]);[m
+[32m+[m
+[32m+[m[32m  if (requestError?.code === "PGRST204") {[m
+[32m+[m[32m    ({ error: requestError } = await db[m
+[32m+[m[32m      .from("requests")[m
+[32m+[m[32m      .update({ status: "inquiry", updated_at: updatedAt })[m
+[32m+[m[32m      .eq("id", requestId)[m
+[32m+[m[32m      .in("status", ["waiting", "done"]));[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  if (requestError) throw requestError;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport async function rejectCustomerAppointment(appointmentId: string) {[m
+[32m+[m[32m  const db = getSupabaseServiceClient();[m
+[32m+[m[32m  const updatedAt = new Date().toISOString();[m
+[32m+[m
+[32m+[m[32m  const { data: existing, error: fetchError } = await db[m
+[32m+[m[32m    .from("appointments")[m
+[32m+[m[32m    .select("id, request_id, status")[m
+[32m+[m[32m    .eq("id", appointmentId)[m
+[32m+[m[32m    .maybeSingle();[m
+[32m+[m
+[32m+[m[32m  if (fetchError) throw fetchError;[m
+[32m+[m[32m  if (!existing?.request_id) {[m
+[32m+[m[32m    throw new Error("Ponuka neexistuje alebo už bola odmietnutá.");[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const requestId = existing.request_id;[m
+[32m+[m
+[32m+[m[32m  if (existing.status === "pending" || existing.status === "accepted") {[m
+[32m+[m[32m    const { error: updateError } = await db[m
+[32m+[m[32m      .from("appointments")[m
+[32m+[m[32m      .update({ status: "rejected" })[m
+[32m+[m[32m      .eq("id", appointmentId)[m
+[32m+[m[32m      .in("status", ["pending", "accepted"]);[m
+[32m+[m
+[32m+[m[32m    if (updateError) throw updateError;[m
+[32m+[m
+[32m+[m[32m    const { data: updatedRow, error: verifyError } = await db[m
+[32m+[m[32m      .from("appointments")[m
+[32m+[m[32m      .select("id, status")[m
+[32m+[m[32m      .eq("id", appointmentId)[m
+[32m+[m[32m      .maybeSingle();[m
+[32m+[m
+[32m+[m[32m    if (verifyError) throw verifyError;[m
+[32m+[m[32m    if (updatedRow?.status !== "rejected") {[m
+[32m+[m[32m      throw new Error([m
+[32m+[m[32m        "Ponuku sa nepodarilo odmietnuť. V Supabase spustite supabase/fix-appointment-reject-flow.sql.",[m
+[32m+[m[32m      );[m
+[32m+[m[32m    }[m
+[32m+[m[32m  } else if (existing.status !== "rejected") {[m
+[32m+[m[32m    throw new Error("Ponuku sa nepodarilo odmietnuť.");[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  await syncRequestAfterRejectedOffers(requestId, updatedAt);[m
+[32m+[m[32m  return requestId;[m
+ }[m
+ [m
+ export function subscribeToAppointmentChanges(onChange: () => void) {[m
+[1mdiff --git a/lib/request-map.ts b/lib/request-map.ts[m
+[1mindex 98e902f..d1fd91d 100644[m
+[1m--- a/lib/request-map.ts[m
+[1m+++ b/lib/request-map.ts[m
+[36m@@ -61,14 +61,10 @@[m [mexport function hasSharedMapLocation([m
+   return LOCATION_SHARE_KEYWORDS.some((keyword) => haystack.includes(keyword));[m
+ }[m
+ [m
+[31m-/**[m
+[31m- * Mapa: odťah vždy; autoservis/pneu len pri zdieľanej polohalebo isEmergency.[m
+[31m- * Text dopytu (napr. „núdzový režim“) mapu nesmie zapnúť — len request_category.[m
+[31m- */[m
+[32m+[m[32m/** Mapa: zatiaľ len odťah (towing) alebo explicitný emergency príznak. */[m
+ export function shouldShowRequestOnMap(request: MapEligibleRequest): boolean {[m
+   if (request.requestCategory === "towing") return true;[m
+[31m-  if (request.isEmergency === true) return true;[m
+[31m-  return hasSharedMapLocation(request);[m
+[32m+[m[32m  return request.isEmergency === true;[m
+ }[m
+ [m
+ export function getRequestMapPosition([m
+[1mdiff --git a/lib/requests.ts b/lib/requests.ts[m
+[1mindex bfb1c7e..973343a 100644[m
+[1m--- a/lib/requests.ts[m
+[1m+++ b/lib/requests.ts[m
+[36m@@ -44,6 +44,9 @@[m [mexport type Request = {[m
+   phone: string;[m
+   createdAt: string;[m
+   rescheduleRequestedAt?: string | null;[m
+[32m+[m[32m  customerAcceptedAt?: string | null;[m
+[32m+[m[32m  serviceAcceptedSeenAt?: string | null;[m
+[32m+[m[32m  serviceInquirySeenAt?: string | null;[m
+   statusBeforeCancel?: RestorableRequestStatus | null;[m
+   completedWork?: string | null;[m
+   vehiclePickupNote?: string | null;[m
+[36m@@ -76,6 +79,9 @@[m [mtype RequestRow = {[m
+   phone: string;[m
+   created_at?: string;[m
+   reschedule_requested_at?: string | null;[m
+[32m+[m[32m  customer_accepted_at?: string | null;[m
+[32m+[m[32m  service_accepted_seen_at?: string | null;[m
+[32m+[m[32m  service_inquiry_seen_at?: string | null;[m
+   status_before_cancel?: RestorableRequestStatus | null;[m
+   completed_work?: string | null;[m
+   vehicle_pickup_note?: string | null;[m
+[36m@@ -340,6 +346,9 @@[m [mfunction mapRequestRow(row: RequestRow): Request {[m
+     phone: row.phone,[m
+     createdAt: row.created_at ?? buildFallbackCreatedAt(row.id),[m
+     rescheduleRequestedAt: row.reschedule_requested_at ?? null,[m
+[32m+[m[32m    customerAcceptedAt: row.customer_accepted_at ?? null,[m
+[32m+[m[32m    serviceAcceptedSeenAt: row.service_accepted_seen_at ?? null,[m
+[32m+[m[32m    serviceInquirySeenAt: row.service_inquiry_seen_at ?? null,[m
+     statusBeforeCancel: row.status_before_cancel ?? null,[m
+     completedWork: row.completed_work ?? null,[m
+     vehiclePickupNote: row.vehicle_pickup_note ?? null,[m
+[36m@@ -403,7 +412,7 @@[m [mexport async function upsertRequests(requests: Request[]) {[m
+ }[m
+ [m
+ const REQUEST_SELECT_FIELDS =[m
+[31m-  "id, status, request_category, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at, reschedule_requested_at, status_before_cancel";[m
+[32m+[m[32m  "id, status, request_category, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at, reschedule_requested_at, customer_accepted_at, service_accepted_seen_at, service_inquiry_seen_at, status_before_cancel";[m
+ [m
+ const REQUEST_SELECT_FIELDS_LEGACY =[m
+   "id, status, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at";[m
+[36m@@ -432,6 +441,32 @@[m [mexport async function fetchRequestById(requestId: string) {[m
+   return mapRequestRow(data as RequestRow);[m
+ }[m
+ [m
+[32m+[m[32mexport async function fetchRequestsByIds(requestIds: string[]) {[m
+[32m+[m[32m  const ids = Array.from(new Set(requestIds.map((id) => id.trim()).filter(Boolean)));[m
+[32m+[m[32m  if (ids.length === 0) {[m
+[32m+[m[32m    return [];[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const { data, error } = await supabase[m
+[32m+[m[32m    .from("requests")[m
+[32m+[m[32m    .select(REQUEST_SELECT_FIELDS)[m
+[32m+[m[32m    .in("id", ids)[m
+[32m+[m[32m    .order("created_at", { ascending: false });[m
+[32m+[m
+[32m+[m[32m  if (error?.code === "PGRST204") {[m
+[32m+[m[32m    const fallback = await supabase[m
+[32m+[m[32m      .from("requests")[m
+[32m+[m[32m      .select(REQUEST_SELECT_FIELDS_LEGACY)[m
+[32m+[m[32m      .in("id", ids)[m
+[32m+[m[32m      .order("created_at", { ascending: false });[m
+[32m+[m[32m    if (fallback.error) throw fallback.error;[m
+[32m+[m[32m    return ((fallback.data ?? []) as RequestRow[]).map(mapRequestRow);[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  if (error) throw error;[m
+[32m+[m[32m  return ((data ?? []) as RequestRow[]).map(mapRequestRow);[m
+[32m+[m[32m}[m
+[32m+[m
+ export async function fetchRequests(options?: { allowFallback?: boolean }) {[m
+   const { data, error } = await supabase[m
+     .from("requests")[m
+[36m@@ -680,6 +715,55 @@[m [mexport function hasCustomerRescheduleRequest([m
+   return Boolean(request.rescheduleRequestedAt || appointment?.reschedule_requested_at);[m
+ }[m
+ [m
+[32m+[m[32mexport function hasUnseenCustomerAcceptance([m
+[32m+[m[32m  request: Pick<[m
+[32m+[m[32m    Request,[m
+[32m+[m[32m    "status" | "customerAcceptedAt" | "serviceAcceptedSeenAt"[m
+[32m+[m[32m  >,[m
+[32m+[m[32m) {[m
+[32m+[m[32m  return ([m
+[32m+[m[32m    request.status === "done" &&[m
+[32m+[m[32m    Boolean(request.customerAcceptedAt) &&[m
+[32m+[m[32m    !request.serviceAcceptedSeenAt[m
+[32m+[m[32m  );[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport function hasUnseenInquiry([m
+[32m+[m[32m  request: Pick<Request, "status" | "serviceInquirySeenAt">,[m
+[32m+[m[32m) {[m
+[32m+[m[32m  return request.status === "inquiry" && !request.serviceInquirySeenAt;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport async function acknowledgeCustomerAcceptance(requestId: string) {[m
+[32m+[m[32m  const timestamp = new Date().toISOString();[m
+[32m+[m[32m  const { error } = await supabase[m
+[32m+[m[32m    .from("requests")[m
+[32m+[m[32m    .update({[m
+[32m+[m[32m      service_accepted_seen_at: timestamp,[m
+[32m+[m[32m      updated_at: timestamp,[m
+[32m+[m[32m    })[m
+[32m+[m[32m    .eq("id", requestId)[m
+[32m+[m[32m    .eq("status", "done");[m
+[32m+[m
+[32m+[m[32m  if (error?.code === "PGRST204") return;[m
+[32m+[m[32m  if (error) throw error;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport async function acknowledgeInquiry(requestId: string) {[m
+[32m+[m[32m  const timestamp = new Date().toISOString();[m
+[32m+[m[32m  const { error } = await supabase[m
+[32m+[m[32m    .from("requests")[m
+[32m+[m[32m    .update({[m
+[32m+[m[32m      service_inquiry_seen_at: timestamp,[m
+[32m+[m[32m      updated_at: timestamp,[m
+[32m+[m[32m    })[m
+[32m+[m[32m    .eq("id", requestId)[m
+[32m+[m[32m    .eq("status", "inquiry");[m
+[32m+[m
+[32m+[m[32m  if (error?.code === "PGRST204") return;[m
+[32m+[m[32m  if (error) throw error;[m
+[32m+[m[32m}[m
+[32m+[m
+ export function getCustomerRescheduleRequestedAt([m
+   request: Pick<Request, "rescheduleRequestedAt">,[m
+   appointment?: { reschedule_requested_at?: string | null } | null,[m
+[1mdiff --git a/mobile-app/app.json b/mobile-app/app.json[m
+[1mindex 74d317e..6d31b2b 100644[m
+[1m--- a/mobile-app/app.json[m
+[1m+++ b/mobile-app/app.json[m
+[36m@@ -25,6 +25,7 @@[m
+         "backgroundColor": "#ffffff"[m
+       },[m
+       "edgeToEdgeEnabled": true,[m
+[32m+[m[32m      "softwareKeyboardLayoutMode": "resize",[m
+       "predictiveBackGestureEnabled": false,[m
+       "permissions": [[m
+         "ACCESS_COARSE_LOCATION",[m
+[1mdiff --git a/mobile-app/app/(tabs)/index.tsx b/mobile-app/app/(tabs)/index.tsx[m
+[1mindex a136b89..b3b806a 100644[m
+[1m--- a/mobile-app/app/(tabs)/index.tsx[m
+[1m+++ b/mobile-app/app/(tabs)/index.tsx[m
+[36m@@ -1,69 +1,153 @@[m
+[31m-import { useRef, useState } from "react";[m
+[31m-import { Pressable, StyleSheet, View } from "react-native";[m
+[31m-import FontAwesome from "@expo/vector-icons/FontAwesome";[m
+[32m+[m[32mimport { useCallback, useMemo, useRef, useState } from "react";[m
+[32m+[m[32mimport { Dimensions, Pressable, StyleSheet, View } from "react-native";[m
+ import { SafeAreaView } from "react-native-safe-area-context";[m
+ [m
+[31m-import { CaskerLogo } from "@/components/casker-logo";[m
+[31m-import { DriverHomeMap, type DriverHomeMapRef } from "@/components/driver-home-map";[m
+[32m+[m[32mimport { AccountPlaceholderScreen } from "@/components/account-placeholder-screen";[m
+[32m+[m[32mimport { CarWrenchIcon, MyLocationIcon } from "@/components/state-icons";[m
+[32m+[m[32mimport {[m
+[32m+[m[32m  DriverHomeMap,[m
+[32m+[m[32m  type DriverHomeMapRef,[m
+[32m+[m[32m  type MapServiceFocus,[m
+[32m+[m[32m} from "@/components/driver-home-map";[m
+ import { DriverRequestSheet } from "@/components/driver-request-sheet";[m
+[32m+[m[32mimport { DriverTopMenu } from "@/components/driver-top-menu";[m
+[32m+[m[32mimport { DriverCalendarSheet } from "@/components/driver-calendar-sheet";[m
+[32m+[m[32mimport { MenuPlaceholderScreen } from "@/components/menu-placeholder-screen";[m
+[32m+[m[32mimport { MyRequestsSheet } from "@/components/my-requests-sheet";[m
+[32m+[m[32mimport { buttonShadow } from "@/constants/button-shadow";[m
+[32m+[m[32mimport { useDriverRequests } from "@/hooks/use-driver-requests";[m
+[32m+[m[32mimport type { DriverServiceResponse } from "@/lib/driver-requests-api";[m
+[32m+[m
+[32m+[m[32mconst SCREEN_HEIGHT = Dimensions.get("window").height;[m
+[32m+[m[32mconst MY_REQUESTS_MAP_INSET = SCREEN_HEIGHT * 0.52;[m
+ [m
+ export default function DriverHomeScreen() {[m
+   const [sheetOpen, setSheetOpen] = useState(false);[m
+[32m+[m[32m  const [myRequestsOpen, setMyRequestsOpen] = useState(false);[m
+[32m+[m[32m  const [garageOpen, setGarageOpen] = useState(false);[m
+[32m+[m[32m  const [calendarOpen, setCalendarOpen] = useState(false);[m
+[32m+[m[32m  const [accountOpen, setAccountOpen] = useState(false);[m
+[32m+[m[32m  const [requestsRefreshKey, setRequestsRefreshKey] = useState(0);[m
+[32m+[m[32m  const [focusedService, setFocusedService] = useState<MapServiceFocus | null>(null);[m
+   const mapRef = useRef<DriverHomeMapRef>(null);[m
+ [m
+[32m+[m[32m  const {[m
+[32m+[m[32m    requests,[m
+[32m+[m[32m    isLoading: requestsLoading,[m
+[32m+[m[32m    reload: reloadRequests,[m
+[32m+[m[32m    pendingResponseCount,[m
+[32m+[m[32m  } = useDriverRequests(requestsRefreshKey);[m
+[32m+[m
+[32m+[m[32m  const handleServiceFocus = useCallback((response: DriverServiceResponse) => {[m
+[32m+[m[32m    if (response.serviceLatitude === null || response.serviceLongitude === null) {[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    setFocusedService({[m
+[32m+[m[32m      responseId: response.id,[m
+[32m+[m[32m      latitude: response.serviceLatitude,[m
+[32m+[m[32m      longitude: response.serviceLongitude,[m
+[32m+[m[32m      serviceName: response.serviceName,[m
+[32m+[m[32m      serviceAddress: response.serviceAddress,[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }, []);[m
+[32m+[m
+[32m+[m[32m  const handleMyRequestsClose = useCallback(() => {[m
+[32m+[m[32m    setMyRequestsOpen(false);[m
+[32m+[m[32m    setFocusedService(null);[m
+[32m+[m[32m    mapRef.current?.clearServiceFocus();[m
+[32m+[m[32m  }, []);[m
+[32m+[m
+[32m+[m[32m  const mapBottomInset = useMemo([m
+[32m+[m[32m    () => (myRequestsOpen ? MY_REQUESTS_MAP_INSET : 0),[m
+[32m+[m[32m    [myRequestsOpen],[m
+[32m+[m[32m  );[m
+[32m+[m
+   return ([m
+     <View style={styles.screen}>[m
+[31m-      <DriverHomeMap ref={mapRef} />[m
+[32m+[m[32m      <DriverHomeMap[m
+[32m+[m[32m        ref={mapRef}[m
+[32m+[m[32m        focusedService={focusedService}[m
+[32m+[m[32m        mapBottomInset={mapBottomInset}[m
+[32m+[m[32m      />[m
+ [m
+       <View pointerEvents="box-none" style={styles.topChrome}>[m
+[31m-        <SafeAreaView edges={["top"]} style={styles.statusBarFill} />[m
+[31m-        <View className="border-b border-white/10 bg-casker-navy px-4 pb-3.5 pt-2.5">[m
+[31m-          <View className="flex-row items-center">[m
+[32m+[m[32m        <SafeAreaView edges={["top"]} pointerEvents="box-none" className="px-4 pt-2">[m
+[32m+[m[32m          <View className="flex-row justify-end">[m
+[32m+[m[32m            <DriverTopMenu[m
+[32m+[m[32m              pendingCount={pendingResponseCount}[m
+[32m+[m[32m              onGarage={() => setGarageOpen(true)}[m
+[32m+[m[32m              onCalendar={() => setCalendarOpen(true)}[m
+[32m+[m[32m              onMyRequests={() => setMyRequestsOpen(true)}[m
+[32m+[m[32m              onAccount={() => setAccountOpen(true)}[m
+[32m+[m[32m            />[m
+[32m+[m[32m          </View>[m
+[32m+[m[32m        </SafeAreaView>[m
+[32m+[m[32m      </View>[m
+[32m+[m
+[32m+[m[32m      <SafeAreaView pointerEvents="box-none" style={styles.bottomOverlay} edges={["bottom"]}>[m
+[32m+[m[32m        {!myRequestsOpen ? ([m
+[32m+[m[32m          <View className="flex-row items-end justify-between px-4 pb-2">[m
+             <View className="w-11" />[m
+[31m-            <View className="flex-1 items-center">[m
+[31m-              <CaskerLogo />[m
+[31m-            </View>[m
+             <Pressable[m
+[31m-              accessibilityLabel="Profil a garáž"[m
+[32m+[m[32m              accessibilityLabel="Nový dopyt"[m
+[32m+[m[32m              accessibilityRole="button"[m
+[32m+[m[32m              onPress={() => setSheetOpen(true)}[m
+[32m+[m[32m              className="h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-white active:bg-slate-50"[m
+[32m+[m[32m              style={buttonShadow}[m
+[32m+[m[32m            >[m
+[32m+[m[32m              <CarWrenchIcon size={34} color="#0b194f" />[m
+[32m+[m[32m            </Pressable>[m
+[32m+[m[32m            <Pressable[m
+[32m+[m[32m              accessibilityLabel="Moja poloha"[m
+               accessibilityRole="button"[m
+               onPress={() => {[m
+[31m-                // Garáž — ďalší krok[m
+[32m+[m[32m                void mapRef.current?.centerOnUser();[m
+               }}[m
+[31m-              className="h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-casker-navy-light active:opacity-80"[m
+[32m+[m[32m              className="h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white active:bg-slate-50"[m
+[32m+[m[32m              style={buttonShadow}[m
+             >[m
+[31m-              <FontAwesome name="user" size={20} color="#f8fafc" />[m
+[32m+[m[32m              <MyLocationIcon size={22} color="#0b194f" />[m
+             </Pressable>[m
+           </View>[m
+[31m-        </View>[m
+[31m-      </View>[m
+[31m-[m
+[31m-      <SafeAreaView pointerEvents="box-none" style={styles.bottomOverlay} edges={["bottom"]}>[m
+[31m-        <View className="flex-row items-end justify-between px-4 pb-2">[m
+[31m-          <View className="w-11" />[m
+[31m-          <Pressable[m
+[31m-            accessibilityLabel="Nový dopyt"[m
+[31m-            accessibilityRole="button"[m
+[31m-            onPress={() => setSheetOpen(true)}[m
+[31m-            className="h-16 w-16 items-center justify-center rounded-full bg-blue-600 active:bg-blue-700"[m
+[31m-            style={styles.fabShadow}[m
+[31m-          >[m
+[31m-            <FontAwesome name="plus" size={28} color="#ffffff" />[m
+[31m-          </Pressable>[m
+[31m-          <Pressable[m
+[31m-            accessibilityLabel="Moja poloha"[m
+[31m-            accessibilityRole="button"[m
+[31m-            onPress={() => {[m
+[31m-              void mapRef.current?.centerOnUser();[m
+[31m-            }}[m
+[31m-            className="h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-casker-navy/95 active:opacity-80"[m
+[31m-            style={styles.fabShadow}[m
+[31m-          >[m
+[31m-            <FontAwesome name="location-arrow" size={20} color="#60a5fa" />[m
+[31m-          </Pressable>[m
+[31m-        </View>[m
+[32m+[m[32m        ) : null}[m
+       </SafeAreaView>[m
+ [m
+[31m-      <DriverRequestSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} />[m
+[32m+[m[32m      <MyRequestsSheet[m
+[32m+[m[32m        visible={myRequestsOpen}[m
+[32m+[m[32m        onClose={handleMyRequestsClose}[m
+[32m+[m[32m        requests={requests}[m
+[32m+[m[32m        isLoading={requestsLoading}[m
+[32m+[m[32m        onReload={reloadRequests}[m
+[32m+[m[32m        activeTabPendingCount={pendingResponseCount}[m
+[32m+[m[32m        onServiceFocus={handleServiceFocus}[m
+[32m+[m[32m        focusedServiceResponseId={focusedService?.responseId ?? null}[m
+[32m+[m[32m      />[m
+[32m+[m
+[32m+[m[32m      <DriverRequestSheet[m
+[32m+[m[32m        visible={sheetOpen}[m
+[32m+[m[32m        onClose={() => setSheetOpen(false)}[m
+[32m+[m[32m        onRequestCreated={() => setRequestsRefreshKey((value) => value + 1)}[m
+[32m+[m[32m      />[m
+[32m+[m
+[32m+[m[32m      <MenuPlaceholderScreen[m
+[32m+[m[32m        visible={garageOpen}[m
+[32m+[m[32m        title="Garáž"[m
+[32m+[m[32m        message="Správa vozidiel v garáži pripravujeme v ďalšom kroku."[m
+[32m+[m[32m        onClose={() => setGarageOpen(false)}[m
+[32m+[m[32m      />[m
+[32m+[m
+[32m+[m[32m      <DriverCalendarSheet[m
+[32m+[m[32m        visible={calendarOpen}[m
+[32m+[m[32m        onClose={() => setCalendarOpen(false)}[m
+[32m+[m[32m        requests={requests}[m
+[32m+[m[32m        isLoading={requestsLoading}[m
+[32m+[m[32m        onRefresh={() => {[m
+[32m+[m[32m          void reloadRequests({ silent: true });[m
+[32m+[m[32m        }}[m
+[32m+[m[32m      />[m
+[32m+[m
+[32m+[m[32m      <AccountPlaceholderScreen visible={accountOpen} onClose={() => setAccountOpen(false)} />[m
+     </View>[m
+   );[m
+ }[m
+[36m@@ -79,20 +163,10 @@[m [mconst styles = StyleSheet.create({[m
+     left: 0,[m
+     right: 0,[m
+   },[m
+[31m-  statusBarFill: {[m
+[31m-    backgroundColor: "#ffffff",[m
+[31m-  },[m
+   bottomOverlay: {[m
+     position: "absolute",[m
+     left: 0,[m
+     right: 0,[m
+     bottom: 0,[m
+   },[m
+[31m-  fabShadow: {[m
+[31m-    shadowColor: "#000",[m
+[31m-    shadowOffset: { width: 0, height: 4 },[m
+[31m-    shadowOpacity: 0.3,[m
+[31m-    shadowRadius: 8,[m
+[31m-    elevation: 8,[m
+[31m-  },[m
+ });[m
+[1mdiff --git a/mobile-app/app/_layout.tsx b/mobile-app/app/_layout.tsx[m
+[1mindex 8d9d0f5..a55f811 100644[m
+[1m--- a/mobile-app/app/_layout.tsx[m
+[1m+++ b/mobile-app/app/_layout.tsx[m
+[36m@@ -6,6 +6,7 @@[m [mimport { useFonts } from 'expo-font';[m
+ import { Stack } from 'expo-router';[m
+ import * as SplashScreen from 'expo-splash-screen';[m
+ import { useEffect } from 'react';[m
+[32m+[m[32mimport { GestureHandlerRootView } from 'react-native-gesture-handler';[m
+ import 'react-native-reanimated';[m
+ [m
+ import { useColorScheme } from '@/components/useColorScheme';[m
+[36m@@ -51,11 +52,13 @@[m [mfunction RootLayoutNav() {[m
+   const colorScheme = useColorScheme();[m
+ [m
+   return ([m
+[31m-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>[m
+[31m-      <Stack>[m
+[31m-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />[m
+[31m-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />[m
+[31m-      </Stack>[m
+[31m-    </ThemeProvider>[m
+[32m+[m[32m    <GestureHandlerRootView style={{ flex: 1 }}>[m
+[32m+[m[32m      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>[m
+[32m+[m[32m        <Stack>[m
+[32m+[m[32m          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />[m
+[32m+[m[32m          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />[m
+[32m+[m[32m        </Stack>[m
+[32m+[m[32m      </ThemeProvider>[m
+[32m+[m[32m    </GestureHandlerRootView>[m
+   );[m
+ }[m
+[1mdiff --git a/mobile-app/components/driver-home-map.tsx b/mobile-app/components/driver-home-map.tsx[m
+[1mindex 2f12c58..760eb82 100644[m
+[1m--- a/mobile-app/components/driver-home-map.tsx[m
+[1m+++ b/mobile-app/components/driver-home-map.tsx[m
+[36m@@ -6,10 +6,14 @@[m [mimport {[m
+   useRef,[m
+   useState,[m
+ } from "react";[m
+[31m-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";[m
+[31m-import MapView, { type Region } from "react-native-maps";[m
+[32m+[m[32mimport { ActivityIndicator, Dimensions, Platform, StyleSheet, Text, View } from "react-native";[m
+[32m+[m[32mimport MapView, { Callout, Marker, type Region } from "react-native-maps";[m
+ import * as Location from "expo-location";[m
+[32m+[m[32mimport { ServiceMapMarker } from "@/components/service-map-marker";[m
+[32m+[m[32mimport { useMapServices } from "@/hooks/use-map-services";[m
+[32m+[m[32mimport { CASKER_MAP_STYLES } from "@/lib/casker-map-style";[m
+ [m
+[32m+[m[32mconst SCREEN_HEIGHT = Dimensions.get("window").height;[m
+ const SLOVAKIA_REGION: Region = {[m
+   latitude: 48.716,[m
+   longitude: 19.699,[m
+[36m@@ -22,17 +26,48 @@[m [mconst USER_REGION_DELTA = {[m
+   longitudeDelta: 0.35,[m
+ };[m
+ [m
+[32m+[m[32mconst STREET_REGION_DELTA = {[m
+[32m+[m[32m  latitudeDelta: 0.006,[m
+[32m+[m[32m  longitudeDelta: 0.006,[m
+[32m+[m[32m};[m
+[32m+[m
+[32m+[m[32mexport type MapServiceFocus = {[m
+[32m+[m[32m  responseId: string;[m
+[32m+[m[32m  latitude: number;[m
+[32m+[m[32m  longitude: number;[m
+[32m+[m[32m  serviceName: string;[m
+[32m+[m[32m  serviceAddress: string;[m
+[32m+[m[32m};[m
+[32m+[m
+[32m+[m[32mtype DriverHomeMapProps = {[m
+[32m+[m[32m  focusedService?: MapServiceFocus | null;[m
+[32m+[m[32m  mapBottomInset?: number;[m
+[32m+[m[32m};[m
+[32m+[m
+ export type DriverHomeMapRef = {[m
+   centerOnUser: () => Promise<void>;[m
+[32m+[m[32m  clearServiceFocus: () => void;[m
+ };[m
+ [m
+[31m-export const DriverHomeMap = forwardRef<DriverHomeMapRef>(function DriverHomeMap([m
+[31m-  _props,[m
+[32m+[m[32mfunction coordinatesMatch([m
+[32m+[m[32m  left: { latitude: number; longitude: number },[m
+[32m+[m[32m  right: { latitude: number; longitude: number },[m
+[32m+[m[32m) {[m
+[32m+[m[32m  return ([m
+[32m+[m[32m    Math.abs(left.latitude - right.latitude) < 0.0025 &&[m
+[32m+[m[32m    Math.abs(left.longitude - right.longitude) < 0.0025[m
+[32m+[m[32m  );[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport const DriverHomeMap = forwardRef<DriverHomeMapRef, DriverHomeMapProps>(function DriverHomeMap([m
+[32m+[m[32m  { focusedService = null, mapBottomInset = 0 },[m
+   ref,[m
+ ) {[m
+   const mapRef = useRef<MapView>(null);[m
+[32m+[m[32m  const focusedMarkerRef = useRef<Marker>(null);[m
+   const [locationHint, setLocationHint] = useState<string | null>(null);[m
+   const [mapReady, setMapReady] = useState(false);[m
+[32m+[m[32m  const { services, error: servicesError } = useMapServices();[m
+ [m
+   const centerOnUser = useCallback(async () => {[m
+     try {[m
+[36m@@ -60,17 +95,55 @@[m [mexport const DriverHomeMap = forwardRef<DriverHomeMapRef>(function DriverHomeMap[m
+     }[m
+   }, []);[m
+ [m
+[31m-  useImperativeHandle(ref, () => ({ centerOnUser }), [centerOnUser]);[m
+[32m+[m[32m  const clearServiceFocus = useCallback(() => {[m
+[32m+[m[32m    focusedMarkerRef.current?.hideCallout();[m
+[32m+[m[32m  }, []);[m
+[32m+[m
+[32m+[m[32m  useImperativeHandle(ref, () => ({ centerOnUser, clearServiceFocus }), [[m
+[32m+[m[32m    centerOnUser,[m
+[32m+[m[32m    clearServiceFocus,[m
+[32m+[m[32m  ]);[m
+ [m
+   useEffect(() => {[m
+     void centerOnUser();[m
+   }, [centerOnUser]);[m
+ [m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    if (!mapReady || !focusedService) {[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const bottomInsetPx = mapBottomInset > 0 ? mapBottomInset : 0;[m
+[32m+[m[32m    const latOffset =[m
+[32m+[m[32m      STREET_REGION_DELTA.latitudeDelta * (bottomInsetPx / SCREEN_HEIGHT) * 0.7;[m
+[32m+[m
+[32m+[m[32m    mapRef.current?.animateToRegion([m
+[32m+[m[32m      {[m
+[32m+[m[32m        latitude: focusedService.latitude - latOffset,[m
+[32m+[m[32m        longitude: focusedService.longitude,[m
+[32m+[m[32m        ...STREET_REGION_DELTA,[m
+[32m+[m[32m      },[m
+[32m+[m[32m      520,[m
+[32m+[m[32m    );[m
+[32m+[m
+[32m+[m[32m    const calloutTimer = setTimeout(() => {[m
+[32m+[m[32m      focusedMarkerRef.current?.showCallout();[m
+[32m+[m[32m    }, 560);[m
+[32m+[m
+[32m+[m[32m    return () => {[m
+[32m+[m[32m      clearTimeout(calloutTimer);[m
+[32m+[m[32m    };[m
+[32m+[m[32m  }, [focusedService, mapBottomInset, mapReady]);[m
+[32m+[m
+[32m+[m[32m  const focusedCoordinate = focusedService[m
+[32m+[m[32m    ? { latitude: focusedService.latitude, longitude: focusedService.longitude }[m
+[32m+[m[32m    : null;[m
+[32m+[m
+   return ([m
+     <View style={styles.fill}>[m
+       {!mapReady ? ([m
+         <View style={styles.loadingOverlay}>[m
+[31m-          <ActivityIndicator size="large" color="#60a5fa" />[m
+[32m+[m[32m          <ActivityIndicator size="large" color="#3d4f63" />[m
+           <Text style={styles.loadingText}>Načítavam mapu…</Text>[m
+         </View>[m
+       ) : null}[m
+[36m@@ -82,14 +155,89 @@[m [mexport const DriverHomeMap = forwardRef<DriverHomeMapRef>(function DriverHomeMap[m
+         onMapReady={() => setMapReady(true)}[m
+         showsUserLocation[m
+         showsMyLocationButton={false}[m
+[31m-        mapType="standard"[m
+[31m-      />[m
+[32m+[m[32m        mapType={Platform.OS === "ios" ? "mutedStandard" : "standard"}[m
+[32m+[m[32m        customMapStyle={[...CASKER_MAP_STYLES]}[m
+[32m+[m[32m      >[m
+[32m+[m[32m        {mapReady[m
+[32m+[m[32m          ? services.map((service) => {[m
+[32m+[m[32m              const addressLabel = [service.address, service.zipCode, service.city][m
+[32m+[m[32m                .map((part) => part.trim())[m
+[32m+[m[32m                .filter(Boolean)[m
+[32m+[m[32m                .join(", ");[m
+[32m+[m
+[32m+[m[32m              const serviceCoordinate = {[m
+[32m+[m[32m                latitude: service.latitude,[m
+[32m+[m[32m                longitude: service.longitude,[m
+[32m+[m[32m              };[m
+[32m+[m
+[32m+[m[32m              const isHighlighted =[m
+[32m+[m[32m                focusedCoordinate !== null &&[m
+[32m+[m[32m                coordinatesMatch(serviceCoordinate, focusedCoordinate);[m
+[32m+[m
+[32m+[m[32m              return ([m
+[32m+[m[32m                <ServiceMapMarker[m
+[32m+[m[32m                  key={service.id}[m
+[32m+[m[32m                  ref={isHighlighted ? focusedMarkerRef : undefined}[m
+[32m+[m[32m                  coordinate={serviceCoordinate}[m
+[32m+[m[32m                  companyName={service.companyName}[m
+[32m+[m[32m                  addressLabel={addressLabel}[m
+[32m+[m[32m                  highlighted={isHighlighted}[m
+[32m+[m[32m                  callout={[m
+[32m+[m[32m                    <Callout>[m
+[32m+[m[32m                      <View style={styles.serviceCallout}>[m
+[32m+[m[32m                        <Text style={styles.serviceCalloutTitle}>{service.companyName}</Text>[m
+[32m+[m[32m                        {addressLabel ? ([m
+[32m+[m[32m                          <Text style={styles.serviceCalloutAddress}>{addressLabel}</Text>[m
+[32m+[m[32m                        ) : null}[m
+[32m+[m[32m                      </View>[m
+[32m+[m[32m                    </Callout>[m
+[32m+[m[32m                  }[m
+[32m+[m[32m                />[m
+[32m+[m[32m              );[m
+[32m+[m[32m            })[m
+[32m+[m[32m          : null}[m
+[32m+[m
+[32m+[m[32m        {mapReady && focusedCoordinate && focusedService ? ([m
+[32m+[m[32m          services.some((service) =>[m
+[32m+[m[32m            coordinatesMatch([m
+[32m+[m[32m              { latitude: service.latitude, longitude: service.longitude },[m
+[32m+[m[32m              focusedCoordinate,[m
+[32m+[m[32m            ),[m
+[32m+[m[32m          ) ? null : ([m
+[32m+[m[32m            <ServiceMapMarker[m
+[32m+[m[32m              ref={focusedMarkerRef}[m
+[32m+[m[32m              coordinate={focusedCoordinate}[m
+[32m+[m[32m              companyName={focusedService.serviceName}[m
+[32m+[m[32m              addressLabel={focusedService.serviceAddress}[m
+[32m+[m[32m              highlighted[m
+[32m+[m[32m              callout={[m
+[32m+[m[32m                <Callout>[m
+[32m+[m[32m                  <View style={styles.serviceCallout}>[m
+[32m+[m[32m                    <Text style={styles.serviceCalloutTitle}>{focusedService.serviceName}</Text>[m
+[32m+[m[32m                    {focusedService.serviceAddress ? ([m
+[32m+[m[32m                      <Text style={styles.serviceCalloutAddress}>[m
+[32m+[m[32m                        {focusedService.serviceAddress}[m
+[32m+[m[32m                      </Text>[m
+[32m+[m[32m                    ) : null}[m
+[32m+[m[32m                  </View>[m
+[32m+[m[32m                </Callout>[m
+[32m+[m[32m              }[m
+[32m+[m[32m            />[m
+[32m+[m[32m          )[m
+[32m+[m[32m        ) : null}[m
+[32m+[m[32m      </MapView>[m
+ [m
+       {locationHint ? ([m
+         <View style={styles.hintBanner} pointerEvents="none">[m
+           <Text style={styles.hintText}>{locationHint}</Text>[m
+         </View>[m
+       ) : null}[m
+[32m+[m
+[32m+[m[32m      {servicesError ? ([m
+[32m+[m[32m        <View style={styles.errorBanner} pointerEvents="none">[m
+[32m+[m[32m          <Text style={styles.errorText}>{servicesError}</Text>[m
+[32m+[m[32m        </View>[m
+[32m+[m[32m      ) : null}[m
+     </View>[m
+   );[m
+ });[m
+[36m@@ -103,11 +251,11 @@[m [mconst styles = StyleSheet.create({[m
+     zIndex: 1,[m
+     alignItems: "center",[m
+     justifyContent: "center",[m
+[31m-    backgroundColor: "#1e293b",[m
+[32m+[m[32m    backgroundColor: "#b8c4d0",[m
+     gap: 12,[m
+   },[m
+   loadingText: {[m
+[31m-    color: "#94a3b8",[m
+[32m+[m[32m    color: "#52657a",[m
+     fontSize: 14,[m
+     fontWeight: "500",[m
+   },[m
+[36m@@ -128,4 +276,42 @@[m [mconst styles = StyleSheet.create({[m
+     lineHeight: 16,[m
+     textAlign: "center",[m
+   },[m
+[32m+[m[32m  errorBanner: {[m
+[32m+[m[32m    position: "absolute",[m
+[32m+[m[32m    left: 12,[m
+[32m+[m[32m    right: 12,[m
+[32m+[m[32m    top: 88,[m
+[32m+[m[32m    zIndex: 2,[m
+[32m+[m[32m    borderRadius: 10,[m
+[32m+[m[32m    backgroundColor: "rgba(220, 38, 38, 0.92)",[m
+[32m+[m[32m    paddingHorizontal: 12,[m
+[32m+[m[32m    paddingVertical: 10,[m
+[32m+[m[32m  },[m
+[32m+[m[32m  errorText: {[m
+[32m+[m[32m    color: "#ffffff",[m
+[32m+[m[32m    fontSize: 12,[m
+[32m+[m[32m    lineHeight: 16,[m
+[32m+[m[32m    textAlign: "center",[m
+[32m+[m[32m  },[m
+[32m+[m[32m  serviceCallout: {[m
+[32m+[m[32m    minWidth: 160,[m
+[32m+[m[32m    maxWidth: 240,[m
+[32m+[m[32m    borderRadius: 12,[m
+[32m+[m[32m    borderWidth: 1,[m
+[32m+[m[32m    borderColor: "#cbd5e1",[m
+[32m+[m[32m    backgroundColor: "#ffffff",[m
+[32m+[m[32m    paddingHorizontal: 12,[m
+[32m+[m[32m    paddingVertical: 10,[m
+[32m+[m[32m  },[m
+[32m+[m[32m  serviceCalloutTitle: {[m
+[32m+[m[32m    color: "#0b194f",[m
+[32m+[m[32m    fontSize: 14,[m
+[32m+[m[32m    fontWeight: "700",[m
+[32m+[m[32m  },[m
+[32m+[m[32m  serviceCalloutAddress: {[m
+[32m+[m[32m    marginTop: 4,[m
+[32m+[m[32m    color: "#475569",[m
+[32m+[m[32m    fontSize: 12,[m
+[32m+[m[32m    lineHeight: 16,[m
+[32m+[m[32m  },[m
+ });[m
+[1mdiff --git a/mobile-app/components/driver-request-sheet.tsx b/mobile-app/components/driver-request-sheet.tsx[m
+[1mindex e29c5e5..1c6092c 100644[m
+[1m--- a/mobile-app/components/driver-request-sheet.tsx[m
+[1m+++ b/mobile-app/components/driver-request-sheet.tsx[m
+[36m@@ -1,58 +1,117 @@[m
+[31m-import { useMemo, useState, type ComponentProps } from "react";[m
+ import {[m
+[32m+[m[32m  useCallback,[m
+[32m+[m[32m  useEffect,[m
+[32m+[m[32m  useLayoutEffect,[m
+[32m+[m[32m  useMemo,[m
+[32m+[m[32m  useRef,[m
+[32m+[m[32m  useState,[m
+[32m+[m[32m} from "react";[m
+[32m+[m[32mimport {[m
+[32m+[m[32m  Dimensions,[m
+[32m+[m[32m  Keyboard,[m
+   Modal,[m
+[32m+[m[32m  Platform,[m
+   Pressable,[m
+[31m-  ScrollView,[m
+[32m+[m[32m  StyleSheet,[m
+   Text,[m
+   TextInput,[m
+   View,[m
+ } from "react-native";[m
+ import Slider from "@react-native-community/slider";[m
+ import FontAwesome from "@expo/vector-icons/FontAwesome";[m
+[32m+[m[32mimport { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";[m
+[32m+[m[32mimport Animated, {[m
+[32m+[m[32m  Easing,[m
+[32m+[m[32m  Extrapolation,[m
+[32m+[m[32m  interpolate,[m
+[32m+[m[32m  runOnJS,[m
+[32m+[m[32m  useAnimatedScrollHandler,[m
+[32m+[m[32m  useAnimatedStyle,[m
+[32m+[m[32m  useSharedValue,[m
+[32m+[m[32m  withSpring,[m
+[32m+[m[32m  withTiming,[m
+[32m+[m[32m} from "react-native-reanimated";[m
+ import { useSafeAreaInsets } from "react-native-safe-area-context";[m
+ [m
+[31m-export type RequestCategoryId = "auto" | "tire" | "towing";[m
+[32m+[m[32mimport { buttonShadow } from "@/constants/button-shadow";[m
+[32m+[m[32mimport { saveCustomerRequestId } from "@/lib/customer-request-ids";[m
+[32m+[m[32mimport { submitDriverInquiry } from "@/lib/driver-inquiry-api";[m
+[32m+[m[32mimport { resolveCurrentDriverLocation } from "@/lib/driver-location";[m
+[32m+[m[32mimport { DRIVER_PROFILE } from "@/lib/driver-profile";[m
+[32m+[m[32mimport {[m
+[32m+[m[32m  DRIVER_VEHICLES,[m
+[32m+[m[32m  formatVehicleSpecsSummary,[m
+[32m+[m[32m  type DriverVehicle,[m
+[32m+[m[32m} from "@/lib/driver-vehicles";[m
+[32m+[m[32mimport type { RequestCategoryId } from "@/lib/request-category";[m
+[32m+[m[32mimport { TowingServiceIcon, WideServiceIcon } from "@/components/service-category-icons";[m
+ [m
+[31m-type VehicleOption = {[m
+[31m-  id: string;[m
+[31m-  label: string;[m
+[31m-  plate: string;[m
+[31m-};[m
+[32m+[m[32mexport type { RequestCategoryId };[m
+ [m
+[31m-const VEHICLES: VehicleOption[] = [[m
+[31m-  { id: "1", label: "BMW X3 xDrive20d", plate: "ZA334OT" },[m
+[31m-  { id: "2", label: "Volkswagen Passat", plate: "ZA901PN" },[m
+[31m-  { id: "3", label: "Škoda Octavia", plate: "BL118OD" },[m
+[31m-];[m
+[32m+[m[32mconst DISMISS_DRAG_PX = 100;[m
+[32m+[m[32mconst DISMISS_VELOCITY = 800;[m
+[32m+[m[32mconst SHEET_HIDDEN_Y = Dimensions.get("window").height;[m
+[32m+[m[32mconst SHEET_CLOSE_MS = 280;[m
+[32m+[m[32mconst SHEET_OPEN_MS = 320;[m
+ [m
+ const CATEGORIES: {[m
+   id: RequestCategoryId;[m
+   label: string;[m
+[31m-  icon: ComponentProps<typeof FontAwesome>["name"];[m
+ }[] = [[m
+[31m-  { id: "auto", label: "Autoservis", icon: "wrench" },[m
+[31m-  { id: "tire", label: "Pneuservis", icon: "circle" },[m
+[31m-  { id: "towing", label: "Odťahovka", icon: "truck" },[m
+[32m+[m[32m  { id: "auto", label: "Autoservis" },[m
+[32m+[m[32m  { id: "tire", label: "Pneuservis" },[m
+[32m+[m[32m  { id: "towing", label: "Odťahovka" },[m
+ ];[m
+ [m
+[32m+[m[32mfunction ServiceCategoryIcon({[m
+[32m+[m[32m  categoryId,[m
+[32m+[m[32m  color,[m
+[32m+[m[32m}: {[m
+[32m+[m[32m  categoryId: RequestCategoryId;[m
+[32m+[m[32m  color: string;[m
+[32m+[m[32m}) {[m
+[32m+[m[32m  if (categoryId === "tire") {[m
+[32m+[m[32m    return <WideServiceIcon size={30} color={color} />;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  if (categoryId === "towing") {[m
+[32m+[m[32m    return <TowingServiceIcon size={30} color={color} />;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  return <FontAwesome name="wrench" size={28} color={color} />;[m
+[32m+[m[32m}[m
+[32m+[m
+ type SheetStep = "vehicle" | "details";[m
+ [m
+ type DriverRequestSheetProps = {[m
+   visible: boolean;[m
+   onClose: () => void;[m
+[32m+[m[32m  onRequestCreated?: (requestId: string) => void;[m
+ };[m
+ [m
+[31m-export function DriverRequestSheet({ visible, onClose }: DriverRequestSheetProps) {[m
+[32m+[m[32mexport function DriverRequestSheet({[m
+[32m+[m[32m  visible,[m
+[32m+[m[32m  onClose,[m
+[32m+[m[32m  onRequestCreated,[m
+[32m+[m[32m}: DriverRequestSheetProps) {[m
+   const insets = useSafeAreaInsets();[m
+   const [step, setStep] = useState<SheetStep>("vehicle");[m
+   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);[m
+   const [selectedCategory, setSelectedCategory] = useState<RequestCategoryId | null>(null);[m
+   const [city, setCity] = useState("");[m
+[32m+[m[32m  const [locationCoords, setLocationCoords] = useState<{[m
+[32m+[m[32m    latitude: number;[m
+[32m+[m[32m    longitude: number;[m
+[32m+[m[32m  } | null>(null);[m
+   const [radiusKm, setRadiusKm] = useState(50);[m
+   const [description, setDescription] = useState("");[m
+[32m+[m[32m  const [isLocationLoading, setIsLocationLoading] = useState(false);[m
+[32m+[m[32m  const [isSubmitting, setIsSubmitting] = useState(false);[m
+[32m+[m[32m  const [locationError, setLocationError] = useState<string | null>(null);[m
+[32m+[m[32m  const [submitError, setSubmitError] = useState<string | null>(null);[m
+ [m
+   const selectedVehicle = useMemo([m
+[31m-    () => VEHICLES.find((vehicle) => vehicle.id === selectedVehicleId) ?? null,[m
+[32m+[m[32m    () => DRIVER_VEHICLES.find((vehicle) => vehicle.id === selectedVehicleId) ?? null,[m
+     [selectedVehicleId],[m
+   );[m
+ [m
+[36m@@ -66,142 +125,483 @@[m [mexport function DriverRequestSheet({ visible, onClose }: DriverRequestSheetProps[m
+     setSelectedVehicleId(null);[m
+     setSelectedCategory(null);[m
+     setCity("");[m
+[32m+[m[32m    setLocationCoords(null);[m
+     setRadiusKm(50);[m
+     setDescription("");[m
+[32m+[m[32m    setIsLocationLoading(false);[m
+[32m+[m[32m    setIsSubmitting(false);[m
+[32m+[m[32m    setLocationError(null);[m
+[32m+[m[32m    setSubmitError(null);[m
+   };[m
+ [m
+[31m-  const handleClose = () => {[m
+[32m+[m[32m  const translateY = useSharedValue(SHEET_HIDDEN_Y);[m
+[32m+[m[32m  const keyboardHeight = useSharedValue(0);[m
+[32m+[m[32m  const scrollY = useSharedValue(0);[m
+[32m+[m[32m  const dragStartY = useSharedValue(0);[m
+[32m+[m[32m  const isClosing = useSharedValue(false);[m
+[32m+[m[32m  const scrollRef = useRef<Animated.ScrollView>(null);[m
+[32m+[m
+[32m+[m[32m  const finishClose = useCallback(() => {[m
+[32m+[m[32m    isClosing.value = false;[m
+[32m+[m[32m    keyboardHeight.value = 0;[m
+     resetForm();[m
+     onClose();[m
+[31m-  };[m
+[32m+[m[32m  }, [isClosing, keyboardHeight, onClose]);[m
+[32m+[m
+[32m+[m[32m  const animateClose = useCallback(() => {[m
+[32m+[m[32m    if (isClosing.value) {[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m[32m    isClosing.value = true;[m
+[32m+[m[32m    translateY.value = withTiming([m
+[32m+[m[32m      SHEET_HIDDEN_Y,[m
+[32m+[m[32m      { duration: SHEET_CLOSE_MS, easing: Easing.in(Easing.cubic) },[m
+[32m+[m[32m      (finished) => {[m
+[32m+[m[32m        if (finished) {[m
+[32m+[m[32m          runOnJS(finishClose)();[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m          isClosing.value = false;[m
+[32m+[m[32m        }[m
+[32m+[m[32m      },[m
+[32m+[m[32m    );[m
+[32m+[m[32m  }, [finishClose, isClosing, translateY]);[m
+[32m+[m
+[32m+[m[32m  useLayoutEffect(() => {[m
+[32m+[m[32m    if (!visible) {[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m[32m    isClosing.value = false;[m
+[32m+[m[32m    keyboardHeight.value = 0;[m
+[32m+[m[32m    scrollY.value = 0;[m
+[32m+[m[32m    translateY.value = SHEET_HIDDEN_Y;[m
+[32m+[m[32m    translateY.value = withTiming(0, {[m
+[32m+[m[32m      duration: SHEET_OPEN_MS,[m
+[32m+[m[32m      easing: Easing.out(Easing.cubic),[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }, [visible, isClosing, keyboardHeight, scrollY, translateY]);[m
+[32m+[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    if (!visible) {[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";[m
+[32m+[m[32m    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";[m
+[32m+[m
+[32m+[m[32m    const showSubscription = Keyboard.addListener(showEvent, (event) => {[m
+[32m+[m[32m      keyboardHeight.value = withTiming(event.endCoordinates.height, {[m
+[32m+[m[32m        duration: Platform.OS === "ios" ? (event.duration ?? 250) : 220,[m
+[32m+[m[32m        easing: Easing.out(Easing.cubic),[m
+[32m+[m[32m      });[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    const hideSubscription = Keyboard.addListener(hideEvent, () => {[m
+[32m+[m[32m      keyboardHeight.value = withTiming(0, {[m
+[32m+[m[32m        duration: 180,[m
+[32m+[m[32m        easing: Easing.out(Easing.cubic),[m
+[32m+[m[32m      });[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    return () => {[m
+[32m+[m[32m      showSubscription.remove();[m
+[32m+[m[32m      hideSubscription.remove();[m
+[32m+[m[32m    };[m
+[32m+[m[32m  }, [visible, keyboardHeight]);[m
+[32m+[m
+[32m+[m[32m  const scrollToFocusedField = useCallback(() => {[m
+[32m+[m[32m    requestAnimationFrame(() => {[m
+[32m+[m[32m      scrollRef.current?.scrollToEnd({ animated: true });[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }, []);[m
+ [m
+   const handleCategoryPress = (categoryId: RequestCategoryId) => {[m
+     setSelectedCategory(categoryId);[m
+[32m+[m[32m  };[m
+[32m+[m
+[32m+[m[32m  const handleContinueToDetails = () => {[m
+[32m+[m[32m    if (!selectedVehicleId || !selectedCategory) {[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+     setStep("details");[m
+   };[m
+ [m
+[31m-  const handleMyLocation = () => {[m
+[31m-    setCity("Košice");[m
+[32m+[m[32m  const handleMyLocation = async () => {[m
+[32m+[m[32m    setLocationError(null);[m
+[32m+[m[32m    setIsLocationLoading(true);[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      const location = await resolveCurrentDriverLocation();[m
+[32m+[m[32m      setCity(location.city);[m
+[32m+[m[32m      setLocationCoords({[m
+[32m+[m[32m        latitude: location.latitude,[m
+[32m+[m[32m        longitude: location.longitude,[m
+[32m+[m[32m      });[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m      const message =[m
+[32m+[m[32m        error instanceof Error ? error.message : "Polohu sa nepodarilo načítať.";[m
+[32m+[m[32m      setLocationError(message);[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setIsLocationLoading(false);[m
+[32m+[m[32m    }[m
+   };[m
+ [m
+[31m-  const handleSubmit = () => {[m
+[31m-    // API napojenie v ďalšom kroku[m
+[31m-    handleClose();[m
+[32m+[m[32m  const handleSubmit = async () => {[m
+[32m+[m[32m    if (isSubmitting || !selectedVehicle || !selectedCategory) {[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const trimmedCity = city.trim();[m
+[32m+[m[32m    if (!trimmedCity) {[m
+[32m+[m[32m      setSubmitError("Zadajte mesto alebo použite „Moja poloha“.");[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    setSubmitError(null);[m
+[32m+[m[32m    setIsSubmitting(true);[m
+[32m+[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      const created = await submitDriverInquiry({[m
+[32m+[m[32m        requestCategory: selectedCategory,[m
+[32m+[m[32m        licensePlate: selectedVehicle.plate,[m
+[32m+[m[32m        vehicleName: selectedVehicle.label,[m
+[32m+[m[32m        vehicleTitle: selectedVehicle.label,[m
+[32m+[m[32m        locationCity: trimmedCity,[m
+[32m+[m[32m        radiusKm,[m
+[32m+[m[32m        description,[m
+[32m+[m[32m        latitude: locationCoords?.latitude,[m
+[32m+[m[32m        longitude: locationCoords?.longitude,[m
+[32m+[m[32m        userName: DRIVER_PROFILE.userName,[m
+[32m+[m[32m        phone: DRIVER_PROFILE.phone,[m
+[32m+[m[32m        vehicleSpecs: {[m
+[32m+[m[32m          vin: selectedVehicle.vin,[m
+[32m+[m[32m          engineVolume: selectedVehicle.engineVolume,[m
+[32m+[m[32m          power: selectedVehicle.power,[m
+[32m+[m[32m          fuelType: selectedVehicle.fuelType,[m
+[32m+[m[32m          year: selectedVehicle.year,[m
+[32m+[m[32m          engine: selectedVehicle.engine,[m
+[32m+[m[32m          mileageKm: selectedVehicle.mileageKm,[m
+[32m+[m[32m          transmission: selectedVehicle.transmission,[m
+[32m+[m[32m        },[m
+[32m+[m[32m      });[m
+[32m+[m[32m      if (created?.id) {[m
+[32m+[m[32m        await saveCustomerRequestId(created.id);[m
+[32m+[m[32m        onRequestCreated?.(created.id);[m
+[32m+[m[32m      }[m
+[32m+[m[32m      animateClose();[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m      const message =[m
+[32m+[m[32m        error instanceof Error ? error.message : "Dopyt sa nepodarilo odoslať.";[m
+[32m+[m[32m      setSubmitError(message);[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setIsSubmitting(false);[m
+[32m+[m[32m    }[m
+   };[m
+ [m
+[32m+[m[32m  const scrollGesture = useMemo(() => Gesture.Native(), []);[m
+[32m+[m
+[32m+[m[32m  const handlePanGesture = useMemo([m
+[32m+[m[32m    () =>[m
+[32m+[m[32m      Gesture.Pan()[m
+[32m+[m[32m        .activeOffsetY([-6, 6])[m
+[32m+[m[32m        .failOffsetX([-20, 20])[m
+[32m+[m[32m        .onBegin(() => {[m
+[32m+[m[32m          dragStartY.value = translateY.value;[m
+[32m+[m[32m        })[m
+[32m+[m[32m        .onUpdate((event) => {[m
+[32m+[m[32m          const nextY = dragStartY.value + event.translationY;[m
+[32m+[m[32m          translateY.value = Math.min(Math.max(nextY, 0), SHEET_HIDDEN_Y);[m
+[32m+[m[32m        })[m
+[32m+[m[32m        .onEnd((event) => {[m
+[32m+[m[32m          const shouldDismiss =[m
+[32m+[m[32m            translateY.value > DISMISS_DRAG_PX ||[m
+[32m+[m[32m            (event.velocityY > DISMISS_VELOCITY && translateY.value > 40);[m
+[32m+[m
+[32m+[m[32m          if (shouldDismiss) {[m
+[32m+[m[32m            if (!isClosing.value) {[m
+[32m+[m[32m              isClosing.value = true;[m
+[32m+[m[32m              translateY.value = withTiming([m
+[32m+[m[32m                SHEET_HIDDEN_Y,[m
+[32m+[m[32m                { duration: SHEET_CLOSE_MS, easing: Easing.in(Easing.cubic) },[m
+[32m+[m[32m                (finished) => {[m
+[32m+[m[32m                  if (finished) {[m
+[32m+[m[32m                    runOnJS(finishClose)();[m
+[32m+[m[32m                  } else {[m
+[32m+[m[32m                    isClosing.value = false;[m
+[32m+[m[32m                  }[m
+[32m+[m[32m                },[m
+[32m+[m[32m              );[m
+[32m+[m[32m            }[m
+[32m+[m[32m            return;[m
+[32m+[m[32m          }[m
+[32m+[m
+[32m+[m[32m          translateY.value = withSpring(0, { damping: 22, stiffness: 320 });[m
+[32m+[m[32m        }),[m
+[32m+[m[32m    [dragStartY, finishClose, isClosing, translateY],[m
+[32m+[m[32m  );[m
+[32m+[m
+[32m+[m[32m  const sheetAnimatedStyle = useAnimatedStyle(() => ({[m
+[32m+[m[32m    transform: [{ translateY: translateY.value - keyboardHeight.value }],[m
+[32m+[m[32m  }));[m
+[32m+[m
+[32m+[m[32m  const backdropAnimatedStyle = useAnimatedStyle(() => ({[m
+[32m+[m[32m    opacity: interpolate([m
+[32m+[m[32m      translateY.value,[m
+[32m+[m[32m      [0, SHEET_HIDDEN_Y],[m
+[32m+[m[32m      [0.55, 0],[m
+[32m+[m[32m      Extrapolation.CLAMP,[m
+[32m+[m[32m    ),[m
+[32m+[m[32m  }));[m
+[32m+[m
+[32m+[m[32m  const scrollHandler = useAnimatedScrollHandler({[m
+[32m+[m[32m    onScroll: (event) => {[m
+[32m+[m[32m      scrollY.value = event.contentOffset.y;[m
+[32m+[m[32m    },[m
+[32m+[m[32m  });[m
+[32m+[m
+[32m+[m[32m  const sheetBottomPadding = Math.max(insets.bottom, 16);[m
+[32m+[m
+   return ([m
+     <Modal[m
+       visible={visible}[m
+[31m-      animationType="slide"[m
+[32m+[m[32m      animationType="none"[m
+       transparent[m
+[31m-      onRequestClose={handleClose}[m
+[32m+[m[32m      statusBarTranslucent[m
+[32m+[m[32m      onRequestClose={animateClose}[m
+     >[m
+[31m-      <Pressable className="flex-1 justify-end bg-black/55" onPress={handleClose}>[m
+[31m-        <Pressable[m
+[31m-          className="max-h-[92%] rounded-t-3xl bg-casker-navy"[m
+[31m-          style={{ paddingBottom: Math.max(insets.bottom, 16) }}[m
+[31m-          onPress={(event) => event.stopPropagation()}[m
+[31m-        >[m
+[31m-          <View className="items-center py-3">[m
+[31m-            <View className="h-1 w-12 rounded-full bg-slate-500" />[m
+[31m-          </View>[m
+[32m+[m[32m      <GestureHandlerRootView style={styles.modalRoot}>[m
+[32m+[m[32m        <View className="flex-1 justify-end">[m
+[32m+[m[32m          <Pressable[m
+[32m+[m[32m            accessibilityLabel="Zavrieť dopyt"[m
+[32m+[m[32m            onPress={animateClose}[m
+[32m+[m[32m            style={styles.backdropPressable}[m
+[32m+[m[32m          >[m
+[32m+[m[32m            <Animated.View pointerEvents="none" style={[styles.backdropFill, backdropAnimatedStyle]} />[m
+[32m+[m[32m          </Pressable>[m
+ [m
+[31m-          <ScrollView[m
+[31m-            className="px-5"[m
+[31m-            keyboardShouldPersistTaps="handled"[m
+[31m-            showsVerticalScrollIndicator={false}[m
+[32m+[m[32m          <Animated.View[m
+[32m+[m[32m            className="max-h-[92%] rounded-t-3xl bg-white"[m
+[32m+[m[32m            style={[sheetAnimatedStyle, { paddingBottom: sheetBottomPadding }]}[m
+           >[m
+[31m-            {step === "vehicle" ? ([m
+[31m-              <VehicleStep[m
+[31m-                selectedVehicleId={selectedVehicleId}[m
+[31m-                selectedCategory={selectedCategory}[m
+[31m-                onSelectVehicle={setSelectedVehicleId}[m
+[31m-                onSelectCategory={handleCategoryPress}[m
+[31m-              />[m
+[31m-            ) : ([m
+[31m-              <DetailsStep[m
+[31m-                categoryLabel={selectedCategoryLabel}[m
+[31m-                vehicleLabel={selectedVehicle?.label ?? ""}[m
+[31m-                city={city}[m
+[31m-                radiusKm={radiusKm}[m
+[31m-                description={description}[m
+[31m-                onCityChange={setCity}[m
+[31m-                onRadiusChange={setRadiusKm}[m
+[31m-                onDescriptionChange={setDescription}[m
+[31m-                onMyLocation={handleMyLocation}[m
+[31m-                onBack={() => setStep("vehicle")}[m
+[31m-                onSubmit={handleSubmit}[m
+[31m-                onCancel={handleClose}[m
+[31m-              />[m
+[31m-            )}[m
+[31m-          </ScrollView>[m
+[31m-        </Pressable>[m
+[31m-      </Pressable>[m
+[32m+[m[32m            <GestureDetector gesture={handlePanGesture}>[m
+[32m+[m[32m              <View[m
+[32m+[m[32m                accessibilityLabel="Potiahnite pre zatvorenie dopytu"[m
+[32m+[m[32m                accessibilityRole="adjustable"[m
+[32m+[m[32m                style={styles.handleTouchArea}[m
+[32m+[m[32m              >[m
+[32m+[m[32m                <View className="h-1.5 w-12 rounded-full bg-slate-300" />[m
+[32m+[m[32m              </View>[m
+[32m+[m[32m            </GestureDetector>[m
+[32m+[m
+[32m+[m[32m            <GestureDetector gesture={scrollGesture}>[m
+[32m+[m[32m                <Animated.ScrollView[m
+[32m+[m[32m                  ref={scrollRef}[m
+[32m+[m[32m                  className="px-5"[m
+[32m+[m[32m                  keyboardShouldPersistTaps="handled"[m
+[32m+[m[32m                  keyboardDismissMode="interactive"[m
+[32m+[m[32m                  automaticallyAdjustKeyboardInsets[m
+[32m+[m[32m                  showsVerticalScrollIndicator={false}[m
+[32m+[m[32m                  onScroll={scrollHandler}[m
+[32m+[m[32m                  scrollEventThrottle={16}[m
+[32m+[m[32m                  contentContainerStyle={styles.scrollContent}[m
+[32m+[m[32m                  bounces[m
+[32m+[m[32m                >[m
+[32m+[m[32m                  {step === "vehicle" ? ([m
+[32m+[m[32m                    <VehicleStep[m
+[32m+[m[32m                      selectedVehicleId={selectedVehicleId}[m
+[32m+[m[32m                      selectedCategory={selectedCategory}[m
+[32m+[m[32m                      onSelectVehicle={setSelectedVehicleId}[m
+[32m+[m[32m                      onSelectCategory={handleCategoryPress}[m
+[32m+[m[32m                      onContinue={handleContinueToDetails}[m
+[32m+[m[32m                    />[m
+[32m+[m[32m                  ) : ([m
+[32m+[m[32m                    <DetailsStep[m
+[32m+[m[32m                      categoryLabel={selectedCategoryLabel}[m
+[32m+[m[32m                      vehicleLabel={selectedVehicle?.label ?? ""}[m
+[32m+[m[32m                      city={city}[m
+[32m+[m[32m                      radiusKm={radiusKm}[m
+[32m+[m[32m                      description={description}[m
+[32m+[m[32m                      isLocationLoading={isLocationLoading}[m
+[32m+[m[32m                      isSubmitting={isSubmitting}[m
+[32m+[m[32m                      locationError={locationError}[m
+[32m+[m[32m                      submitError={submitError}[m
+[32m+[m[32m                      onCityChange={(value) => {[m
+[32m+[m[32m                        setCity(value);[m
+[32m+[m[32m                        setLocationCoords(null);[m
+[32m+[m[32m                        setLocationError(null);[m
+[32m+[m[32m                      }}[m
+[32m+[m[32m                      onRadiusChange={setRadiusKm}[m
+[32m+[m[32m                      onDescriptionChange={setDescription}[m
+[32m+[m[32m                      onFieldFocus={scrollToFocusedField}[m
+[32m+[m[32m                      onMyLocation={() => {[m
+[32m+[m[32m                        void handleMyLocation();[m
+[32m+[m[32m                      }}[m
+[32m+[m[32m                      onBack={() => setStep("vehicle")}[m
+[32m+[m[32m                      onSubmit={() => {[m
+[32m+[m[32m                        void handleSubmit();[m
+[32m+[m[32m                      }}[m
+[32m+[m[32m                      onCancel={animateClose}[m
+[32m+[m[32m                    />[m
+[32m+[m[32m                  )}[m
+[32m+[m[32m                </Animated.ScrollView>[m
+[32m+[m[32m            </GestureDetector>[m
+[32m+[m[32m          </Animated.View>[m
+[32m+[m[32m        </View>[m
+[32m+[m[32m      </GestureHandlerRootView>[m
+     </Modal>[m
+   );[m
+ }[m
+ [m
+[32m+[m[32mconst styles = StyleSheet.create({[m
+[32m+[m[32m  modalRoot: {[m
+[32m+[m[32m    flex: 1,[m
+[32m+[m[32m  },[m
+[32m+[m[32m  backdropPressable: {[m
+[32m+[m[32m    ...StyleSheet.absoluteFillObject,[m
+[32m+[m[32m  },[m
+[32m+[m[32m  backdropFill: {[m
+[32m+[m[32m    ...StyleSheet.absoluteFillObject,[m
+[32m+[m[32m    backgroundColor: "#000",[m
+[32m+[m[32m  },[m
+[32m+[m[32m  scrollContent: {[m
+[32m+[m[32m    paddingBottom: 32,[m
+[32m+[m[32m  },[m
+[32m+[m[32m  handleTouchArea: {[m
+[32m+[m[32m    alignSelf: "stretch",[m
+[32m+[m[32m    alignItems: "center",[m
+[32m+[m[32m    justifyContent: "center",[m
+[32m+[m[32m    minHeight: 48,[m
+[32m+[m[32m    paddingVertical: 14,[m
+[32m+[m[32m    paddingHorizontal: 48,[m
+[32m+[m[32m  },[m
+[32m+[m[32m  optionDefault: {[m
+[32m+[m[32m    borderWidth: 1,[m
+[32m+[m[32m    borderColor: "#e2e8f0",[m
+[32m+[m[32m    backgroundColor: "#ffffff",[m
+[32m+[m[32m  },[m
+[32m+[m[32m  optionSelected: {[m
+[32m+[m[32m    borderWidth: 2,[m
+[32m+[m[32m    borderColor: "#0b194f",[m
+[32m+[m[32m    backgroundColor: "#f8fafc",[m
+[32m+[m[32m  },[m
+[32m+[m[32m});[m
+[32m+[m
+[32m+[m[32mfunction VehicleOptionCard({[m
+[32m+[m[32m  vehicle,[m
+[32m+[m[32m  isSelected,[m
+[32m+[m[32m  onPress,[m
+[32m+[m[32m}: {[m
+[32m+[m[32m  vehicle: DriverVehicle;[m
+[32m+[m[32m  isSelected: boolean;[m
+[32m+[m[32m  onPress: () => void;[m
+[32m+[m[32m}) {[m
+[32m+[m[32m  return ([m
+[32m+[m[32m    <Pressable[m
+[32m+[m[32m      onPress={onPress}[m
+[32m+[m[32m      className="rounded-xl px-4 py-3"[m
+[32m+[m[32m      style={[buttonShadow, isSelected ? styles.optionSelected : styles.optionDefault]}[m
+[32m+[m[32m    >[m
+[32m+[m[32m      <Text className="text-base font-semibold text-casker-navy">{vehicle.label}</Text>[m
+[32m+[m[32m      <Text className="mt-0.5 text-sm text-slate-500">EČ {vehicle.plate}</Text>[m
+[32m+[m[32m      <Text className="mt-1 text-xs leading-5 text-slate-600">[m
+[32m+[m[32m        {formatVehicleSpecsSummary(vehicle)}[m
+[32m+[m[32m      </Text>[m
+[32m+[m[32m      <Text className="mt-0.5 text-xs text-slate-500">[m
+[32m+[m[32m        {vehicle.fuelType} · {vehicle.transmission} · {vehicle.engineVolume}[m
+[32m+[m[32m      </Text>[m
+[32m+[m[32m    </Pressable>[m
+[32m+[m[32m  );[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction ServiceCategoryCard({[m
+[32m+[m[32m  categoryId,[m
+[32m+[m[32m  label,[m
+[32m+[m[32m  isSelected,[m
+[32m+[m[32m  onPress,[m
+[32m+[m[32m}: {[m
+[32m+[m[32m  categoryId: RequestCategoryId;[m
+[32m+[m[32m  label: string;[m
+[32m+[m[32m  isSelected: boolean;[m
+[32m+[m[32m  onPress: () => void;[m
+[32m+[m[32m}) {[m
+[32m+[m[32m  return ([m
+[32m+[m[32m    <Pressable[m
+[32m+[m[32m      onPress={onPress}[m
+[32m+[m[32m      accessibilityRole="button"[m
+[32m+[m[32m      accessibilityState={{ selected: isSelected }}[m
+[32m+[m[32m      className="flex-row items-center justify-center gap-3 rounded-2xl py-4"[m
+[32m+[m[32m      style={[buttonShadow, isSelected ? styles.optionSelected : styles.optionDefault]}[m
+[32m+[m[32m    >[m
+[32m+[m[32m      <ServiceCategoryIcon[m
+[32m+[m[32m        categoryId={categoryId}[m
+[32m+[m[32m        color={isSelected ? "#0b194f" : "#0b194f"}[m
+[32m+[m[32m      />[m
+[32m+[m[32m      <Text className="text-lg font-bold text-casker-navy">{label}</Text>[m
+[32m+[m[32m    </Pressable>[m
+[32m+[m[32m  );[m
+[32m+[m[32m}[m
+[32m+[m
+ function VehicleStep({[m
+   selectedVehicleId,[m
+   selectedCategory,[m
+   onSelectVehicle,[m
+   onSelectCategory,[m
+[32m+[m[32m  onContinue,[m
+ }: {[m
+   selectedVehicleId: string | null;[m
+   selectedCategory: RequestCategoryId | null;[m
+   onSelectVehicle: (id: string) => void;[m
+   onSelectCategory: (id: RequestCategoryId) => void;[m
+[32m+[m[32m  onContinue: () => void;[m
+ }) {[m
+   return ([m
+     <View className="pb-6">[m
+[31m-      <Text className="text-center text-2xl font-black tracking-wide text-white">cAsker</Text>[m
+[31m-      <Text className="mt-1 text-center text-base font-semibold text-slate-300">Dopyt</Text>[m
+[32m+[m[32m      <Text className="text-center text-2xl font-black tracking-wide text-casker-navy">cAsker</Text>[m
+[32m+[m[32m      <Text className="mt-1 text-center text-base font-semibold text-casker-navy/80">Dopyt</Text>[m
+ [m
+[31m-      <Text className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-400">[m
+[32m+[m[32m      <Text className="mt-6 text-sm font-semibold uppercase tracking-wide text-casker-navy/60">[m
+         Vyberte vozidlo[m
+       </Text>[m
+ [m
+       <View className="mt-3 gap-2">[m
+[31m-        {VEHICLES.map((vehicle) => {[m
+[32m+[m[32m        {DRIVER_VEHICLES.map((vehicle) => {[m
+           const isSelected = selectedVehicleId === vehicle.id;[m
+           return ([m
+[31m-            <Pressable[m
+[32m+[m[32m            <VehicleOptionCard[m
+               key={vehicle.id}[m
+[32m+[m[32m              vehicle={vehicle}[m
+[32m+[m[32m              isSelected={isSelected}[m
+               onPress={() => onSelectVehicle(vehicle.id)}[m
+[31m-              className={`rounded-xl border px-4 py-3 ${[m
+[31m-                isSelected[m
+[31m-                  ? "border-blue-400 bg-casker-navy-light"[m
+[31m-                  : "border-slate-600 bg-slate-800/80"[m
+[31m-              }`}[m
+[31m-            >[m
+[31m-              <Text className="text-base font-semibold text-white">{vehicle.label}</Text>[m
+[31m-              <Text className="mt-0.5 text-sm text-slate-400">EČ {vehicle.plate}</Text>[m
+[31m-            </Pressable>[m
+[32m+[m[32m            />[m
+           );[m
+         })}[m
+       </View>[m
+ [m
+       {selectedVehicleId ? ([m
+         <View className="mt-6">[m
+[31m-          <Text className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">[m
+[32m+[m[32m          <Text className="mb-3 text-sm font-semibold uppercase tracking-wide text-casker-navy/60">[m
+             Typ služby[m
+           </Text>[m
+           <View className="gap-3">[m
+             {CATEGORIES.map((category) => ([m
+[31m-              <Pressable[m
+[32m+[m[32m              <ServiceCategoryCard[m
+                 key={category.id}[m
+[32m+[m[32m                categoryId={category.id}[m
+[32m+[m[32m                label={category.label}[m
+[32m+[m[32m                isSelected={selectedCategory === category.id}[m
+                 onPress={() => onSelectCategory(category.id)}[m
+[31m-                className={`flex-row items-center justify-center gap-3 rounded-2xl border py-4 ${[m
+[31m-                  selectedCategory === category.id[m
+[31m-                    ? "border-blue-400 bg-blue-600/30"[m
+[31m-                    : "border-slate-600 bg-slate-800"[m
+[31m-                }`}[m
+[31m-              >[m
+[31m-                <FontAwesome name={category.icon} size={20} color="#e2e8f0" />[m
+[31m-                <Text className="text-lg font-bold text-white">{category.label}</Text>[m
+[31m-              </Pressable>[m
+[32m+[m[32m              />[m
+             ))}[m
+           </View>[m
+[32m+[m
+[32m+[m[32m          {selectedCategory ? ([m
+[32m+[m[32m            <Pressable[m
+[32m+[m[32m              onPress={onContinue}[m
+[32m+[m[32m              className="mt-5 items-center rounded-2xl bg-casker-navy py-4 active:opacity-90"[m
+[32m+[m[32m              style={buttonShadow}[m
+[32m+[m[32m            >[m
+[32m+[m[32m              <Text className="text-base font-bold text-white">Pokračovať</Text>[m
+[32m+[m[32m            </Pressable>[m
+[32m+[m[32m          ) : null}[m
+         </View>[m
+       ) : null}[m
+     </View>[m
+[36m@@ -214,9 +614,14 @@[m [mfunction DetailsStep({[m
+   city,[m
+   radiusKm,[m
+   description,[m
+[32m+[m[32m  isLocationLoading,[m
+[32m+[m[32m  isSubmitting,[m
+[32m+[m[32m  locationError,[m
+[32m+[m[32m  submitError,[m
+   onCityChange,[m
+   onRadiusChange,[m
+   onDescriptionChange,[m
+[32m+[m[32m  onFieldFocus,[m
+   onMyLocation,[m
+   onBack,[m
+   onSubmit,[m
+[36m@@ -227,9 +632,14 @@[m [mfunction DetailsStep({[m
+   city: string;[m
+   radiusKm: number;[m
+   description: string;[m
+[32m+[m[32m  isLocationLoading: boolean;[m
+[32m+[m[32m  isSubmitting: boolean;[m
+[32m+[m[32m  locationError: string | null;[m
+[32m+[m[32m  submitError: string | null;[m
+   onCityChange: (value: string) => void;[m
+   onRadiusChange: (value: number) => void;[m
+   onDescriptionChange: (value: string) => void;[m
+[32m+[m[32m  onFieldFocus: () => void;[m
+   onMyLocation: () => void;[m
+   onBack: () => void;[m
+   onSubmit: () => void;[m
+[36m@@ -237,13 +647,17 @@[m [mfunction DetailsStep({[m
+ }) {[m
+   return ([m
+     <View className="pb-4">[m
+[31m-      <Pressable onPress={onBack} className="mb-4 flex-row items-center gap-2 self-start">[m
+[31m-        <FontAwesome name="chevron-left" size={14} color="#94a3b8" />[m
+[31m-        <Text className="text-sm font-medium text-slate-400">Späť</Text>[m
+[32m+[m[32m      <Pressable[m
+[32m+[m[32m        onPress={onBack}[m
+[32m+[m[32m        className="mb-4 flex-row items-center gap-2 self-start rounded-lg bg-white px-2 py-1"[m
+[32m+[m[32m        style={buttonShadow}[m
+[32m+[m[32m      >[m
+[32m+[m[32m        <FontAwesome name="chevron-left" size={14} color="#0b194f" />[m
+[32m+[m[32m        <Text className="text-sm font-medium text-casker-navy/70">Späť</Text>[m
+       </Pressable>[m
+ [m
+[31m-      <Text className="text-xl font-bold text-white">Kde hľadám dopyt</Text>[m
+[31m-      <Text className="mt-1 text-sm text-slate-400">[m
+[32m+[m[32m      <Text className="text-xl font-bold text-casker-navy">Kde hľadám dopyt</Text>[m
+[32m+[m[32m      <Text className="mt-1 text-sm text-slate-500">[m
+         {categoryLabel}[m
+         {vehicleLabel ? ` · ${vehicleLabel}` : ""}[m
+       </Text>[m
+[36m@@ -251,30 +665,39 @@[m [mfunction DetailsStep({[m
+       <View className="mt-5 flex-row items-center gap-2">[m
+         <Pressable[m
+           onPress={onMyLocation}[m
+[31m-          className="flex-row items-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-4 py-3"[m
+[32m+[m[32m          disabled={isLocationLoading || isSubmitting}[m
+[32m+[m[32m          className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 active:bg-slate-50 disabled:opacity-60"[m
+[32m+[m[32m          style={buttonShadow}[m
+         >[m
+[31m-          <FontAwesome name="location-arrow" size={16} color="#60a5fa" />[m
+[31m-          <Text className="text-sm font-semibold text-blue-300">Moja poloha</Text>[m
+[32m+[m[32m          <FontAwesome name="location-arrow" size={16} color="#0b194f" />[m
+[32m+[m[32m          <Text className="text-sm font-semibold text-casker-navy">[m
+[32m+[m[32m            {isLocationLoading ? "Načítavam polohu…" : "Moja poloha"}[m
+[32m+[m[32m          </Text>[m
+         </Pressable>[m
+       </View>[m
+ [m
+[31m-      <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">[m
+[32m+[m[32m      {locationError ? ([m
+[32m+[m[32m        <Text className="mt-2 text-sm text-red-600">{locationError}</Text>[m
+[32m+[m[32m      ) : null}[m
+[32m+[m
+[32m+[m[32m      <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">[m
+         Mesto / lokalita[m
+       </Text>[m
+       <TextInput[m
+         value={city}[m
+         onChangeText={onCityChange}[m
+[32m+[m[32m        onFocus={onFieldFocus}[m
+         placeholder="Napr. Košice"[m
+[31m-        placeholderTextColor="#64748b"[m
+[31m-        className="mt-2 rounded-xl border border-slate-600 bg-slate-800 px-4 py-3 text-base text-white"[m
+[32m+[m[32m        placeholderTextColor="#94a3b8"[m
+[32m+[m[32m        className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-casker-navy"[m
+       />[m
+ [m
+[31m-      <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">[m
+[32m+[m[32m      <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">[m
+         V okolí[m
+       </Text>[m
+       <View className="mt-2 flex-row items-center justify-between">[m
+[31m-        <Text className="text-sm text-slate-300">Vzdialenosť</Text>[m
+[31m-        <Text className="text-lg font-bold text-white">{Math.round(radiusKm)} km</Text>[m
+[32m+[m[32m        <Text className="text-sm text-slate-600">Vzdialenosť</Text>[m
+[32m+[m[32m        <Text className="text-lg font-bold text-casker-navy">{Math.round(radiusKm)} km</Text>[m
+       </View>[m
+       <Slider[m
+         minimumValue={5}[m
+[36m@@ -282,37 +705,50 @@[m [mfunction DetailsStep({[m
+         step={5}[m
+         value={radiusKm}[m
+         onValueChange={onRadiusChange}[m
+[31m-        minimumTrackTintColor="#3b82f6"[m
+[31m-        maximumTrackTintColor="#334155"[m
+[31m-        thumbTintColor="#60a5fa"[m
+[32m+[m[32m        minimumTrackTintColor="#2563eb"[m
+[32m+[m[32m        maximumTrackTintColor="#e2e8f0"[m
+[32m+[m[32m        thumbTintColor="#0b194f"[m
+         style={{ width: "100%", height: 40 }}[m
+       />[m
+ [m
+[31m-      <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">[m
+[32m+[m[32m      <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">[m
+         Popis[m
+       </Text>[m
+       <TextInput[m
+         value={description}[m
+         onChangeText={onDescriptionChange}[m
+[32m+[m[32m        onFocus={onFieldFocus}[m
+         placeholder="Opíšte závadu alebo čo potrebujete…"[m
+[31m-        placeholderTextColor="#64748b"[m
+[32m+[m[32m        placeholderTextColor="#94a3b8"[m
+         multiline[m
+         textAlignVertical="top"[m
+[31m-        className="mt-2 min-h-[120px] rounded-xl border border-slate-600 bg-slate-800 px-4 py-3 text-base text-white"[m
+[32m+[m[32m        className="mt-2 min-h-[120px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-casker-navy"[m
+       />[m
+ [m
+[32m+[m[32m      {submitError ? ([m
+[32m+[m[32m        <Text className="mt-4 text-sm text-red-600" role="alert">[m
+[32m+[m[32m          {submitError}[m
+[32m+[m[32m        </Text>[m
+[32m+[m[32m      ) : null}[m
+[32m+[m
+       <Pressable[m
+         onPress={onSubmit}[m
+[31m-        className="mt-6 items-center rounded-2xl bg-blue-600 py-4 active:bg-blue-700"[m
+[32m+[m[32m        disabled={isSubmitting}[m
+[32m+[m[32m        className="mt-6 items-center rounded-2xl border border-slate-200 bg-white py-4 active:bg-slate-50 disabled:opacity-60"[m
+[32m+[m[32m        style={buttonShadow}[m
+       >[m
+[31m-        <Text className="text-base font-bold text-white">Odoslať dopyt</Text>[m
+[32m+[m[32m        <Text className="text-base font-bold text-casker-navy">[m
+[32m+[m[32m          {isSubmitting ? "Odosielam…" : "Odoslať dopyt"}[m
+[32m+[m[32m        </Text>[m
+       </Pressable>[m
+ [m
+       <Pressable[m
+         onPress={onCancel}[m
+[31m-        className="mt-3 items-center rounded-2xl border border-slate-600 bg-slate-800 py-4 active:bg-slate-700"[m
+[32m+[m[32m        disabled={isSubmitting}[m
+[32m+[m[32m        className="mt-3 items-center rounded-2xl border border-slate-200 bg-white py-4 active:bg-slate-50 disabled:opacity-60"[m
+[32m+[m[32m        style={buttonShadow}[m
+       >[m
+[31m-        <Text className="text-base font-bold text-slate-300">Zrušiť</Text>[m
+[32m+[m[32m        <Text className="text-base font-bold text-casker-navy">Zrušiť</Text>[m
+       </Pressable>[m
+     </View>[m
+   );[m
+[1mdiff --git a/mobile-app/components/state-icons.tsx b/mobile-app/components/state-icons.tsx[m
+[1mindex 9185740..20cae0f 100644[m
+[1m--- a/mobile-app/components/state-icons.tsx[m
+[1m+++ b/mobile-app/components/state-icons.tsx[m
+[36m@@ -1,10 +1,24 @@[m
+[31m-import Svg, { Path } from "react-native-svg";[m
+[32m+[m[32mimport Svg, { Circle, Path } from "react-native-svg";[m
+ [m
+ type StateIconProps = {[m
+   size?: number;[m
+   color?: string;[m
+ };[m
+ [m
+[32m+[m[32m/** Crosshair „moja poloha“ — rovnaký tvar ako LocateMeIcon v dashboarde. */[m
+[32m+[m[32mexport function MyLocationIcon({[m
+[32m+[m[32m  size = 22,[m
+[32m+[m[32m  color = "rgba(255, 255, 255, 0.78)",[m
+[32m+[m[32m}: StateIconProps) {[m
+[32m+[m[32m  return ([m
+[32m+[m[32m    <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityRole="image">[m
+[32m+[m[32m      <Circle cx="12" cy="12" r="3.25" fill={color} />[m
+[32m+[m[32m      <Circle cx="12" cy="12" r="8.5" fill="none" stroke={color} strokeWidth={2} />[m
+[32m+[m[32m      <Path fill="none" stroke={color} strokeWidth={2} d="M12 2v4M12 18v4M2 12h4M18 12h4" />[m
+[32m+[m[32m    </Svg>[m
+[32m+[m[32m  );[m
+[32m+[m[32m}[m
+[32m+[m
+ /** Rovnaká ikona ako v dashboarde (auto + kľúč). */[m
+ export function CarWrenchIcon({ size = 40, color = "#ffffff" }: StateIconProps) {[m
+   return ([m
+[1mdiff --git a/mobile-app/package-lock.json b/mobile-app/package-lock.json[m
+[1mindex e01b946..37e4a1a 100644[m
+[1m--- a/mobile-app/package-lock.json[m
+[1m+++ b/mobile-app/package-lock.json[m
+[36m@@ -9,6 +9,7 @@[m
+       "version": "1.0.0",[m
+       "dependencies": {[m
+         "@expo/vector-icons": "^15.0.3",[m
+[32m+[m[32m        "@react-native-async-storage/async-storage": "2.2.0",[m
+         "@react-native-community/slider": "5.0.1",[m
+         "@react-navigation/native": "^7.1.8",[m
+         "babel-preset-expo": "~54.0.10",[m
+[36m@@ -25,7 +26,9 @@[m
+         "react": "19.1.0",[m
+         "react-dom": "19.1.0",[m
+         "react-native": "0.81.5",[m
+[32m+[m[32m        "react-native-gesture-handler": "~2.28.0",[m
+         "react-native-maps": "1.20.1",[m
+[32m+[m[32m        "react-native-pager-view": "6.9.1",[m
+         "react-native-reanimated": "~4.1.1",[m
+         "react-native-safe-area-context": "~5.6.0",[m
+         "react-native-screens": "~4.16.0",[m
+[36m@@ -1543,6 +1546,18 @@[m
+         "node": ">=6.9.0"[m
+       }[m
+     },[m
+[32m+[m[32m    "node_modules/@egjs/hammerjs": {[m
+[32m+[m[32m      "version": "2.0.17",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/@egjs/hammerjs/-/hammerjs-2.0.17.tgz",[m
+[32m+[m[32m      "integrity": "sha512-XQsZgjm2EcVUiZQf11UBJQfmZeEmOW8DpI1gsFeln6w0ae0ii4dMQEQ0kjl6DspdWX1aGY1/loyXnP0JS06e/A==",[m
+[32m+[m[32m      "license": "MIT",[m
+[32m+[m[32m      "dependencies": {[m
+[32m+[m[32m        "@types/hammerjs": "^2.0.36"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      "engines": {[m
+[32m+[m[32m        "node": ">=0.8.0"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+     "node_modules/@expo/code-signing-certificates": {[m
+       "version": "0.0.6",[m
+       "resolved": "https://registry.npmjs.org/@expo/code-signing-certificates/-/code-signing-certificates-0.0.6.tgz",[m
+[36m@@ -2431,6 +2446,18 @@[m
+         }[m
+       }[m
+     },[m
+[32m+[m[32m    "node_modules/@react-native-async-storage/async-storage": {[m
+[32m+[m[32m      "version": "2.2.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/@react-native-async-storage/async-storage/-/async-storage-2.2.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-gvRvjR5JAaUZF8tv2Kcq/Gbt3JHwbKFYfmb445rhOj6NUMx3qPLixmDx5pZAyb9at1bYvJ4/eTUipU5aki45xw==",[m
+[32m+[m[32m      "license": "MIT",[m
+[32m+[m[32m      "dependencies": {[m
+[32m+[m[32m        "merge-options": "^3.0.4"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      "peerDependencies": {[m
+[32m+[m[32m        "react-native": "^0.0.0-0 || >=0.65 <1.0"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+     "node_modules/@react-native-community/slider": {[m
+       "version": "5.0.1",[m
+       "resolved": "https://registry.npmjs.org/@react-native-community/slider/-/slider-5.0.1.tgz",[m
+[36m@@ -2894,6 +2921,12 @@[m
+         "@types/node": "*"[m
+       }[m
+     },[m
+[32m+[m[32m    "node_modules/@types/hammerjs": {[m
+[32m+[m[32m      "version": "2.0.46",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/@types/hammerjs/-/hammerjs-2.0.46.tgz",[m
+[32m+[m[32m      "integrity": "sha512-ynRvcq6wvqexJ9brDMS4BnBLzmr0e14d6ZJTEShTBWKymQiHwlAyGu0ZPEFI2Fh1U53F7tN9ufClWM5KvqkKOw==",[m
+[32m+[m[32m      "license": "MIT"[m
+[32m+[m[32m    },[m
+     "node_modules/@types/istanbul-lib-coverage": {[m
+       "version": "2.0.6",[m
+       "resolved": "https://registry.npmjs.org/@types/istanbul-lib-coverage/-/istanbul-lib-coverage-2.0.6.tgz",[m
+[36m@@ -5441,6 +5474,21 @@[m
+         "hermes-estree": "0.32.0"[m
+       }[m
+     },[m
+[32m+[m[32m    "node_modules/hoist-non-react-statics": {[m
+[32m+[m[32m      "version": "3.3.2",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/hoist-non-react-statics/-/hoist-non-react-statics-3.3.2.tgz",[m
+[32m+[m[32m      "integrity": "sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==",[m
+[32m+[m[32m      "license": "BSD-3-Clause",[m
+[32m+[m[32m      "dependencies": {[m
+[32m+[m[32m        "react-is": "^16.7.0"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "node_modules/hoist-non-react-statics/node_modules/react-is": {[m
+[32m+[m[32m      "version": "16.13.1",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/react-is/-/react-is-16.13.1.tgz",[m
+[32m+[m[32m      "integrity": "sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==",[m
+[32m+[m[32m      "license": "MIT"[m
+[32m+[m[32m    },[m
+     "node_modules/hosted-git-info": {[m
+       "version": "7.0.2",[m
+       "resolved": "https://registry.npmjs.org/hosted-git-info/-/hosted-git-info-7.0.2.tgz",[m
+[36m@@ -5688,6 +5736,15 @@[m
+         "node": ">=0.12.0"[m
+       }[m
+     },[m
+[32m+[m[32m    "node_modules/is-plain-obj": {[m
+[32m+[m[32m      "version": "2.1.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/is-plain-obj/-/is-plain-obj-2.1.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-YWnfyRwxL/+SsrWYfOpUtz5b3YD+nyfkHvjbcanzk8zgyO4ASD67uVMRt8k5bM4lLMDnXfriRhOpemw+NfT1eA==",[m
+[32m+[m[32m      "license": "MIT",[m
+[32m+[m[32m      "engines": {[m
+[32m+[m[32m        "node": ">=8"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+     "node_modules/is-wsl": {[m
+       "version": "2.2.0",[m
+       "resolved": "https://registry.npmjs.org/is-wsl/-/is-wsl-2.2.0.tgz",[m
+[36m@@ -6454,6 +6511,18 @@[m
+       "integrity": "sha512-zYiwtZUcYyXKo/np96AGZAckk+FWWsUdJ3cHGGmld7+AhvcWmQyGCYUh1hc4Q/pkOhb65dQR/pqCyK0cOaHz4Q==",[m
+       "license": "MIT"[m
+     },[m
+[32m+[m[32m    "node_modules/merge-options": {[m
+[32m+[m[32m      "version": "3.0.4",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/merge-options/-/merge-options-3.0.4.tgz",[m
+[32m+[m[32m      "integrity": "sha512-2Sug1+knBjkaMsMgf1ctR1Ujx+Ayku4EdJN4Z+C2+JzoeF7A3OZ9KM2GY0CpQS51NR61LTurMJrRKPhSs3ZRTQ==",[m
+[32m+[m[32m      "license": "MIT",[m
+[32m+[m[32m      "dependencies": {[m
+[32m+[m[32m        "is-plain-obj": "^2.1.0"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      "engines": {[m
+[32m+[m[32m        "node": ">=10"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+     "node_modules/merge-stream": {[m
+       "version": "2.0.0",[m
+       "resolved": "https://registry.npmjs.org/merge-stream/-/merge-stream-2.0.0.tgz",[m
+[36m@@ -8138,6 +8207,21 @@[m
+         "node": ">=10"[m
+       }[m
+     },[m
+[32m+[m[32m    "node_modules/react-native-gesture-handler": {[m
+[32m+[m[32m      "version": "2.28.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/react-native-gesture-handler/-/react-native-gesture-handler-2.28.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-0msfJ1vRxXKVgTgvL+1ZOoYw3/0z1R+Ked0+udoJhyplC2jbVKIJ8Z1bzWdpQRCV3QcQ87Op0zJVE5DhKK2A0A==",[m
+[32m+[m[32m      "license": "MIT",[m
+[32m+[m[32m      "dependencies": {[m
+[32m+[m[32m        "@egjs/hammerjs": "^2.0.17",[m
+[32m+[m[32m        "hoist-non-react-statics": "^3.3.0",[m
+[32m+[m[32m        "invariant": "^2.2.4"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      "peerDependencies": {[m
+[32m+[m[32m        "react": "*",[m
+[32m+[m[32m        "react-native": "*"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+     "node_modules/react-native-is-edge-to-edge": {[m
+       "version": "1.3.1",[m
+       "resolved": "https://registry.npmjs.org/react-native-is-edge-to-edge/-/react-native-is-edge-to-edge-1.3.1.tgz",[m
+[36m@@ -8170,6 +8254,16 @@[m
+         }[m
+       }[m
+     },[m
+[32m+[m[32m    "node_modules/react-native-pager-view": {[m
+[32m+[m[32m      "version": "6.9.1",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/react-native-pager-view/-/react-native-pager-view-6.9.1.tgz",[m
+[32m+[m[32m      "integrity": "sha512-uUT0MMMbNtoSbxe9pRvdJJKEi9snjuJ3fXlZhG8F2vVMOBJVt/AFtqMPUHu9yMflmqOr08PewKzj9EPl/Yj+Gw==",[m
+[32m+[m[32m      "license": "MIT",[m
+[32m+[m[32m      "peerDependencies": {[m
+[32m+[m[32m        "react": "*",[m
+[32m+[m[32m        "react-native": "*"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+     "node_modules/react-native-reanimated": {[m
+       "version": "4.1.7",[m
+       "resolved": "https://registry.npmjs.org/react-native-reanimated/-/react-native-reanimated-4.1.7.tgz",[m
+[1mdiff --git a/mobile-app/package.json b/mobile-app/package.json[m
+[1mindex 2410c07..18bf1af 100644[m
+[1m--- a/mobile-app/package.json[m
+[1m+++ b/mobile-app/package.json[m
+[36m@@ -10,6 +10,7 @@[m
+   },[m
+   "dependencies": {[m
+     "@expo/vector-icons": "^15.0.3",[m
+[32m+[m[32m    "@react-native-async-storage/async-storage": "2.2.0",[m
+     "@react-native-community/slider": "5.0.1",[m
+     "@react-navigation/native": "^7.1.8",[m
+     "babel-preset-expo": "~54.0.10",[m
+[36m@@ -26,7 +27,9 @@[m
+     "react": "19.1.0",[m
+     "react-dom": "19.1.0",[m
+     "react-native": "0.81.5",[m
+[32m+[m[32m    "react-native-gesture-handler": "~2.28.0",[m
+     "react-native-maps": "1.20.1",[m
+[32m+[m[32m    "react-native-pager-view": "6.9.1",[m
+     "react-native-reanimated": "~4.1.1",[m
+     "react-native-safe-area-context": "~5.6.0",[m
+     "react-native-screens": "~4.16.0",[m
+[1mdiff --git a/package.json b/package.json[m
+[1mindex f5b0a6c..caeec92 100644[m
+[1m--- a/package.json[m
+[1m+++ b/package.json[m
+[36m@@ -6,7 +6,9 @@[m
+     "dev": "next dev",[m
+     "build": "next build",[m
+     "start": "next start",[m
+[31m-    "lint": "eslint"[m
+[32m+[m[32m    "lint": "eslint",[m
+[32m+[m[32m    "wipe-requests": "node scripts/wipe-all-requests.mjs",[m
+[32m+[m[32m    "build:service-map-pin": "node scripts/build-service-map-pin.mjs"[m
+   },[m
+   "dependencies": {[m
+     "@supabase/ssr": "^0.10.3",[m

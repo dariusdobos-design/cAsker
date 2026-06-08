@@ -29,6 +29,7 @@ type MapCalendarProps = {
   onToggle: () => void;
   appointments: Appointment[];
   requests: RequestLike[];
+  selectedAppointmentId?: string | null;
   onSelectAppointment: (appointment: Appointment) => void;
   onRefresh?: () => void;
   children: React.ReactNode;
@@ -75,6 +76,7 @@ export function MapCalendar({
   onToggle,
   appointments,
   requests,
+  selectedAppointmentId = null,
   onSelectAppointment,
   onRefresh,
   children,
@@ -153,12 +155,15 @@ export function MapCalendar({
   ) => {
     const matchedRequest = findRequestForAppointment(appointment, requests);
 
+    const isSelected = selectedAppointmentId === appointment.id;
+
     return (
       <button
         key={appointment.id}
         type="button"
-        className={`casker-calendar-event ${compact ? "is-compact" : ""}`}
+        className={`casker-calendar-event ${compact ? "is-compact" : ""}${isSelected ? " is-selected" : ""}`}
         onClick={() => onSelectAppointment(appointment)}
+        aria-pressed={isSelected}
       >
         {showTime ? (
           <span className="casker-calendar-event-time">

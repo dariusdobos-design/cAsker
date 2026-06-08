@@ -1,3 +1,4 @@
+import { getSupabaseServiceClient } from "./supabase-service";
 import { supabase } from "./supabase";
 import {
   clearRequestRescheduleRequested,
@@ -11,6 +12,13 @@ import {
 
 export type AppointmentStatus = "pending" | "accepted" | "rejected";
 
+export type AppointmentServiceInfo = {
+  companyName: string;
+  serviceAddress: string;
+  serviceCity: string;
+  serviceZip: string;
+};
+
 export type Appointment = {
   id: string;
   request_id?: string | null;
@@ -20,6 +28,10 @@ export type Appointment = {
   appointment_time: string;
   status: AppointmentStatus;
   message?: string | null;
+  companyName?: string | null;
+  serviceAddress?: string | null;
+  serviceCity?: string | null;
+  serviceZip?: string | null;
   reschedule_requested_at?: string | null;
   created_at?: string;
 };
@@ -40,7 +52,7 @@ const APPOINTMENT_PROPOSAL_SELECT_FIELDS =
   "id, request_id, appointment_date, appointment_time, message, sent_at, proposal_kind";
 
 const APPOINTMENT_SELECT_FIELDS =
-  "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, message, reschedule_requested_at, created_at";
+  "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, message, company_name, service_address, service_city, service_zip, reschedule_requested_at, created_at";
 
 const APPOINTMENT_SELECT_FIELDS_LEGACY =
   "id, request_id, customer_name, vehicle_info, appointment_date, appointment_time, status, message, created_at";
@@ -74,14 +86,21 @@ export function formatAppointmentLabel(appointment: Appointment) {
   return appointment.vehicle_info;
 }
 
+function isPlaceholderVehicleSpec(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return true;
+
+  return /^[—–\-.\s/]+$/u.test(normalized);
+}
+
 export function formatCalendarPowerLabel(power: string) {
   const trimmed = power.trim();
-  if (!trimmed) return "";
+  if (isPlaceholderVehicleSpec(trimmed)) return "";
 
   const number = trimmed.replace(/\s*kW\s*/gi, "").trim();
-  if (!number) return trimmed;
+  if (isPlaceholderVehicleSpec(number)) return "";
 
-  return `${number} KW`;
+  return `${number} kW`;
 }
 
 export function formatCalendarAppointmentLabel(
@@ -90,12 +109,20 @@ export function formatCalendarAppointmentLabel(
 ) {
   if (!request) return appointment.vehicle_info;
 
+  const engine =
+    request.engine.trim() &&
+    request.engine.trim().toLowerCase() !== request.vehicleName.trim().toLowerCase()
+      ? request.engine
+      : null;
+
   return [
     request.vehicleName,
-    request.engine,
+    engine,
     formatCalendarPowerLabel(request.power),
     String(request.year),
-  ].join(", ");
+  ]
+    .filter(Boolean)
+    .join(", ");
 }
 
 export function appointmentDateTime(appointment: Appointment) {
@@ -182,6 +209,47 @@ export function formatAppointmentDisplayTime(time: string) {
 
 export function formatAppointmentSchedule(appointment: Appointment) {
   return `${formatAppointmentDisplayDate(appointment.appointment_date)} · ${formatAppointmentDisplayTime(appointment.appointment_time)}`;
+}
+
+export function formatAppointmentServiceAddress(
+  appointment: Pick<Appointment, "serviceAddress" | "serviceCity" | "serviceZip">,
+) {
+  const street = appointment.serviceAddress?.trim() ?? "";
+  const city = appointment.serviceCity?.trim() ?? "";
+  const zip = appointment.serviceZip?.trim() ?? "";
+  const cityLine = [zip, city].filter(Boolean).join(" ").trim();
+
+  return [street, cityLine].filter(Boolean).join(", ");
+}
+
+function mapAppointmentRow(row: Record<string, unknown>): Appointment {
+  return {
+    id: String(row.id),
+    request_id: (row.request_id as string | null) ?? null,
+    customer_name: String(row.customer_name),
+    vehicle_info: String(row.vehicle_info),
+    appointment_date: String(row.appointment_date),
+    appointment_time: String(row.appointment_time),
+    status: row.status as AppointmentStatus,
+    message: (row.message as string | null) ?? null,
+    companyName: (row.company_name as string | null) ?? null,
+    serviceAddress: (row.service_address as string | null) ?? null,
+    serviceCity: (row.service_city as string | null) ?? null,
+    serviceZip: (row.service_zip as string | null) ?? null,
+    reschedule_requested_at: (row.reschedule_requested_at as string | null) ?? null,
+    created_at: (row.created_at as string | undefined) ?? undefined,
+  };
+}
+
+function buildServiceInfoPayload(serviceInfo?: AppointmentServiceInfo) {
+  if (!serviceInfo) return {};
+
+  return {
+    company_name: serviceInfo.companyName.trim() || null,
+    service_address: serviceInfo.serviceAddress.trim() || null,
+    service_city: serviceInfo.serviceCity.trim() || null,
+    service_zip: serviceInfo.serviceZip.trim() || null,
+  };
 }
 
 export function formatProposalSchedule(
@@ -401,6 +469,7 @@ export async function createPendingAppointment(input: {
   appointmentDate: string;
   appointmentTime: string;
   message: string;
+  serviceInfo?: AppointmentServiceInfo;
 }) {
   const validationError = getAppointmentDateTimeValidationError(
     input.appointmentDate,
@@ -420,13 +489,21 @@ export async function createPendingAppointment(input: {
     appointment_time: normalizeAppointmentTime(input.appointmentTime),
     message: input.message.trim(),
     status: "pending" as const,
+    ...buildServiceInfoPayload(input.serviceInfo),
   };
 
   let { error } = await supabase.from("appointments").insert(appointmentPayload);
 
   if (error?.code === "PGRST204") {
-    const { request_id: _requestId, message: _message, ...legacyPayload } =
-      appointmentPayload;
+    const {
+      request_id: _requestId,
+      message: _message,
+      company_name: _companyName,
+      service_address: _serviceAddress,
+      service_city: _serviceCity,
+      service_zip: _serviceZip,
+      ...legacyPayload
+    } = appointmentPayload;
     ({ error } = await supabase.from("appointments").insert(legacyPayload));
   }
 
@@ -453,6 +530,7 @@ export async function rescheduleAppointment(input: {
   appointmentDate: string;
   appointmentTime: string;
   message: string;
+  serviceInfo?: AppointmentServiceInfo;
 }) {
   const validationError = getAppointmentDateTimeValidationError(
     input.appointmentDate,
@@ -472,6 +550,7 @@ export async function rescheduleAppointment(input: {
     appointment_time: normalizeAppointmentTime(input.appointmentTime),
     message: input.message.trim(),
     status: "pending" as const,
+    ...buildServiceInfoPayload(input.serviceInfo),
   };
 
   const { data: existingRows, error: findError } = await supabase
@@ -633,12 +712,159 @@ export async function fetchPendingAppointments() {
       .eq("status", "pending")
       .order("created_at", { ascending: false });
     if (fallback.error) throw fallback.error;
-    return (fallback.data ?? []) as Appointment[];
+    return (fallback.data ?? []).map((row) => mapAppointmentRow(row as Record<string, unknown>));
   }
 
   if (error) throw error;
 
-  return (data ?? []) as Appointment[];
+  return (data ?? []).map((row) => mapAppointmentRow(row as Record<string, unknown>));
+}
+
+export async function fetchAppointmentsForRequestIds(requestIds: string[]) {
+  const ids = Array.from(new Set(requestIds.map((id) => id.trim()).filter(Boolean)));
+  if (ids.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("appointments")
+    .select(APPOINTMENT_SELECT_FIELDS)
+    .in("request_id", ids)
+    .in("status", ["pending", "accepted"])
+    .order("created_at", { ascending: true });
+
+  if (error?.code === "PGRST204") {
+    const fallback = await supabase
+      .from("appointments")
+      .select(APPOINTMENT_SELECT_FIELDS_LEGACY)
+      .in("request_id", ids)
+      .in("status", ["pending", "accepted"])
+      .order("created_at", { ascending: true });
+    if (fallback.error) throw fallback.error;
+    return (fallback.data ?? []).map((row) => mapAppointmentRow(row as Record<string, unknown>));
+  }
+
+  if (error) throw error;
+
+  return (data ?? []).map((row) => mapAppointmentRow(row as Record<string, unknown>));
+}
+
+export async function acceptCustomerAppointment(appointmentId: string) {
+  const updatedAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("appointments")
+    .update({ status: "accepted" })
+    .eq("id", appointmentId)
+    .select("id, request_id, status")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data?.request_id) {
+    throw new Error("Termín sa nepodarilo prijať.");
+  }
+
+  let { error: requestError } = await supabase
+    .from("requests")
+    .update({
+      status: "done",
+      updated_at: updatedAt,
+      customer_accepted_at: updatedAt,
+      service_accepted_seen_at: null,
+    })
+    .eq("id", data.request_id)
+    .in("status", ["inquiry", "waiting"]);
+
+  if (requestError?.code === "PGRST204") {
+    ({ error: requestError } = await supabase
+      .from("requests")
+      .update({ status: "done", updated_at: updatedAt })
+      .eq("id", data.request_id)
+      .in("status", ["inquiry", "waiting"]));
+  }
+
+  if (requestError) throw requestError;
+
+  return data.request_id as string;
+}
+
+async function syncRequestAfterRejectedOffers(requestId: string, updatedAt: string) {
+  const db = getSupabaseServiceClient();
+
+  const { data: activeAppointments, error: activeError } = await db
+    .from("appointments")
+    .select("id")
+    .eq("request_id", requestId)
+    .in("status", ["pending", "accepted"]);
+
+  if (activeError) throw activeError;
+
+  if (activeAppointments && activeAppointments.length > 0) {
+    return;
+  }
+
+  let { error: requestError } = await db
+    .from("requests")
+    .update({
+      status: "inquiry",
+      updated_at: updatedAt,
+      reschedule_requested_at: null,
+    })
+    .eq("id", requestId)
+    .in("status", ["waiting", "done"]);
+
+  if (requestError?.code === "PGRST204") {
+    ({ error: requestError } = await db
+      .from("requests")
+      .update({ status: "inquiry", updated_at: updatedAt })
+      .eq("id", requestId)
+      .in("status", ["waiting", "done"]));
+  }
+
+  if (requestError) throw requestError;
+}
+
+export async function rejectCustomerAppointment(appointmentId: string) {
+  const db = getSupabaseServiceClient();
+  const updatedAt = new Date().toISOString();
+
+  const { data: existing, error: fetchError } = await db
+    .from("appointments")
+    .select("id, request_id, status")
+    .eq("id", appointmentId)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+  if (!existing?.request_id) {
+    throw new Error("Ponuka neexistuje alebo už bola odmietnutá.");
+  }
+
+  const requestId = existing.request_id;
+
+  if (existing.status === "pending" || existing.status === "accepted") {
+    const { error: updateError } = await db
+      .from("appointments")
+      .update({ status: "rejected" })
+      .eq("id", appointmentId)
+      .in("status", ["pending", "accepted"]);
+
+    if (updateError) throw updateError;
+
+    const { data: updatedRow, error: verifyError } = await db
+      .from("appointments")
+      .select("id, status")
+      .eq("id", appointmentId)
+      .maybeSingle();
+
+    if (verifyError) throw verifyError;
+    if (updatedRow?.status !== "rejected") {
+      throw new Error(
+        "Ponuku sa nepodarilo odmietnuť. V Supabase spustite supabase/fix-appointment-reject-flow.sql.",
+      );
+    }
+  } else if (existing.status !== "rejected") {
+    throw new Error("Ponuku sa nepodarilo odmietnuť.");
+  }
+
+  await syncRequestAfterRejectedOffers(requestId, updatedAt);
+  return requestId;
 }
 
 export function subscribeToAppointmentChanges(onChange: () => void) {

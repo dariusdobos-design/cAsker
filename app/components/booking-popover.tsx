@@ -9,12 +9,14 @@ import {
   getAppointmentDateTimeValidationError,
   parseBookingTimeInput,
   toDateKey,
+  type AppointmentServiceInfo,
 } from "@/lib/appointments";
 import type { Request } from "@/lib/requests";
 import { getSupabaseErrorMessage } from "@/lib/supabase-error";
 
 type BookingPopoverProps = {
   request: Request;
+  serviceInfo?: AppointmentServiceInfo;
   anchorRef: React.RefObject<HTMLButtonElement | null>;
   isOpen: boolean;
   onClose: () => void;
@@ -41,6 +43,7 @@ const BOOKING_MINUTES = Array.from({ length: 60 }, (_, index) =>
 
 export function BookingPopover({
   request,
+  serviceInfo,
   anchorRef,
   isOpen,
   onClose,
@@ -194,6 +197,7 @@ export function BookingPopover({
         appointmentDate,
         appointmentTime: parsedTime,
         message,
+        serviceInfo,
       });
       setSuccess(true);
       onCreated(request.id);

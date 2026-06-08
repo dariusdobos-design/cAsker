@@ -1,58 +1,117 @@
-import { useMemo, useState, type ComponentProps } from "react";
 import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Dimensions,
+  Keyboard,
   Modal,
+  Platform,
   Pressable,
-  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import Slider from "@react-native-community/slider";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, {
+  Easing,
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export type RequestCategoryId = "auto" | "tire" | "towing";
+import { buttonShadow } from "@/constants/button-shadow";
+import { saveCustomerRequestId } from "@/lib/customer-request-ids";
+import { submitDriverInquiry } from "@/lib/driver-inquiry-api";
+import { resolveCurrentDriverLocation } from "@/lib/driver-location";
+import { DRIVER_PROFILE } from "@/lib/driver-profile";
+import {
+  DRIVER_VEHICLES,
+  formatVehicleSpecsSummary,
+  type DriverVehicle,
+} from "@/lib/driver-vehicles";
+import type { RequestCategoryId } from "@/lib/request-category";
+import { TowingServiceIcon, WideServiceIcon } from "@/components/service-category-icons";
 
-type VehicleOption = {
-  id: string;
-  label: string;
-  plate: string;
-};
+export type { RequestCategoryId };
 
-const VEHICLES: VehicleOption[] = [
-  { id: "1", label: "BMW X3 xDrive20d", plate: "ZA334OT" },
-  { id: "2", label: "Volkswagen Passat", plate: "ZA901PN" },
-  { id: "3", label: "Škoda Octavia", plate: "BL118OD" },
-];
+const DISMISS_DRAG_PX = 100;
+const DISMISS_VELOCITY = 800;
+const SHEET_HIDDEN_Y = Dimensions.get("window").height;
+const SHEET_CLOSE_MS = 280;
+const SHEET_OPEN_MS = 320;
 
 const CATEGORIES: {
   id: RequestCategoryId;
   label: string;
-  icon: ComponentProps<typeof FontAwesome>["name"];
 }[] = [
-  { id: "auto", label: "Autoservis", icon: "wrench" },
-  { id: "tire", label: "Pneuservis", icon: "circle" },
-  { id: "towing", label: "Odťahovka", icon: "truck" },
+  { id: "auto", label: "Autoservis" },
+  { id: "tire", label: "Pneuservis" },
+  { id: "towing", label: "Odťahovka" },
 ];
+
+function ServiceCategoryIcon({
+  categoryId,
+  color,
+}: {
+  categoryId: RequestCategoryId;
+  color: string;
+}) {
+  if (categoryId === "tire") {
+    return <WideServiceIcon size={30} color={color} />;
+  }
+
+  if (categoryId === "towing") {
+    return <TowingServiceIcon size={30} color={color} />;
+  }
+
+  return <FontAwesome name="wrench" size={28} color={color} />;
+}
 
 type SheetStep = "vehicle" | "details";
 
 type DriverRequestSheetProps = {
   visible: boolean;
   onClose: () => void;
+  onRequestCreated?: (requestId: string) => void;
 };
 
-export function DriverRequestSheet({ visible, onClose }: DriverRequestSheetProps) {
+export function DriverRequestSheet({
+  visible,
+  onClose,
+  onRequestCreated,
+}: DriverRequestSheetProps) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<SheetStep>("vehicle");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<RequestCategoryId | null>(null);
   const [city, setCity] = useState("");
+  const [locationCoords, setLocationCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
   const [description, setDescription] = useState("");
+  const [isLocationLoading, setIsLocationLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const selectedVehicle = useMemo(
-    () => VEHICLES.find((vehicle) => vehicle.id === selectedVehicleId) ?? null,
+    () => DRIVER_VEHICLES.find((vehicle) => vehicle.id === selectedVehicleId) ?? null,
     [selectedVehicleId],
   );
 
@@ -66,78 +125,418 @@ export function DriverRequestSheet({ visible, onClose }: DriverRequestSheetProps
     setSelectedVehicleId(null);
     setSelectedCategory(null);
     setCity("");
+    setLocationCoords(null);
     setRadiusKm(50);
     setDescription("");
+    setIsLocationLoading(false);
+    setIsSubmitting(false);
+    setLocationError(null);
+    setSubmitError(null);
   };
 
-  const handleClose = () => {
+  const translateY = useSharedValue(SHEET_HIDDEN_Y);
+  const keyboardHeight = useSharedValue(0);
+  const scrollY = useSharedValue(0);
+  const dragStartY = useSharedValue(0);
+  const isClosing = useSharedValue(false);
+  const scrollRef = useRef<Animated.ScrollView>(null);
+
+  const finishClose = useCallback(() => {
+    isClosing.value = false;
+    keyboardHeight.value = 0;
     resetForm();
     onClose();
-  };
+  }, [isClosing, keyboardHeight, onClose]);
+
+  const animateClose = useCallback(() => {
+    if (isClosing.value) {
+      return;
+    }
+    isClosing.value = true;
+    translateY.value = withTiming(
+      SHEET_HIDDEN_Y,
+      { duration: SHEET_CLOSE_MS, easing: Easing.in(Easing.cubic) },
+      (finished) => {
+        if (finished) {
+          runOnJS(finishClose)();
+        } else {
+          isClosing.value = false;
+        }
+      },
+    );
+  }, [finishClose, isClosing, translateY]);
+
+  useLayoutEffect(() => {
+    if (!visible) {
+      return;
+    }
+    isClosing.value = false;
+    keyboardHeight.value = 0;
+    scrollY.value = 0;
+    translateY.value = SHEET_HIDDEN_Y;
+    translateY.value = withTiming(0, {
+      duration: SHEET_OPEN_MS,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [visible, isClosing, keyboardHeight, scrollY, translateY]);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
+      keyboardHeight.value = withTiming(event.endCoordinates.height, {
+        duration: Platform.OS === "ios" ? (event.duration ?? 250) : 220,
+        easing: Easing.out(Easing.cubic),
+      });
+    });
+
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      keyboardHeight.value = withTiming(0, {
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+      });
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [visible, keyboardHeight]);
+
+  const scrollToFocusedField = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
 
   const handleCategoryPress = (categoryId: RequestCategoryId) => {
     setSelectedCategory(categoryId);
+  };
+
+  const handleContinueToDetails = () => {
+    if (!selectedVehicleId || !selectedCategory) {
+      return;
+    }
+
     setStep("details");
   };
 
-  const handleMyLocation = () => {
-    setCity("Košice");
+  const handleMyLocation = async () => {
+    setLocationError(null);
+    setIsLocationLoading(true);
+    try {
+      const location = await resolveCurrentDriverLocation();
+      setCity(location.city);
+      setLocationCoords({
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Polohu sa nepodarilo načítať.";
+      setLocationError(message);
+    } finally {
+      setIsLocationLoading(false);
+    }
   };
 
-  const handleSubmit = () => {
-    // API napojenie v ďalšom kroku
-    handleClose();
+  const handleSubmit = async () => {
+    if (isSubmitting || !selectedVehicle || !selectedCategory) {
+      return;
+    }
+
+    const trimmedCity = city.trim();
+    if (!trimmedCity) {
+      setSubmitError("Zadajte mesto alebo použite „Moja poloha“.");
+      return;
+    }
+
+    setSubmitError(null);
+    setIsSubmitting(true);
+
+    try {
+      const created = await submitDriverInquiry({
+        requestCategory: selectedCategory,
+        licensePlate: selectedVehicle.plate,
+        vehicleName: selectedVehicle.label,
+        vehicleTitle: selectedVehicle.label,
+        locationCity: trimmedCity,
+        radiusKm,
+        description,
+        latitude: locationCoords?.latitude,
+        longitude: locationCoords?.longitude,
+        userName: DRIVER_PROFILE.userName,
+        phone: DRIVER_PROFILE.phone,
+        vehicleSpecs: {
+          vin: selectedVehicle.vin,
+          engineVolume: selectedVehicle.engineVolume,
+          power: selectedVehicle.power,
+          fuelType: selectedVehicle.fuelType,
+          year: selectedVehicle.year,
+          engine: selectedVehicle.engine,
+          mileageKm: selectedVehicle.mileageKm,
+          transmission: selectedVehicle.transmission,
+        },
+      });
+      if (created?.id) {
+        await saveCustomerRequestId(created.id);
+        onRequestCreated?.(created.id);
+      }
+      animateClose();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Dopyt sa nepodarilo odoslať.";
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const scrollGesture = useMemo(() => Gesture.Native(), []);
+
+  const handlePanGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY([-6, 6])
+        .failOffsetX([-20, 20])
+        .onBegin(() => {
+          dragStartY.value = translateY.value;
+        })
+        .onUpdate((event) => {
+          const nextY = dragStartY.value + event.translationY;
+          translateY.value = Math.min(Math.max(nextY, 0), SHEET_HIDDEN_Y);
+        })
+        .onEnd((event) => {
+          const shouldDismiss =
+            translateY.value > DISMISS_DRAG_PX ||
+            (event.velocityY > DISMISS_VELOCITY && translateY.value > 40);
+
+          if (shouldDismiss) {
+            if (!isClosing.value) {
+              isClosing.value = true;
+              translateY.value = withTiming(
+                SHEET_HIDDEN_Y,
+                { duration: SHEET_CLOSE_MS, easing: Easing.in(Easing.cubic) },
+                (finished) => {
+                  if (finished) {
+                    runOnJS(finishClose)();
+                  } else {
+                    isClosing.value = false;
+                  }
+                },
+              );
+            }
+            return;
+          }
+
+          translateY.value = withSpring(0, { damping: 22, stiffness: 320 });
+        }),
+    [dragStartY, finishClose, isClosing, translateY],
+  );
+
+  const sheetAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value - keyboardHeight.value }],
+  }));
+
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      translateY.value,
+      [0, SHEET_HIDDEN_Y],
+      [0.55, 0],
+      Extrapolation.CLAMP,
+    ),
+  }));
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  const sheetBottomPadding = Math.max(insets.bottom, 16);
 
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="none"
       transparent
-      onRequestClose={handleClose}
+      statusBarTranslucent
+      onRequestClose={animateClose}
     >
-      <Pressable className="flex-1 justify-end bg-black/55" onPress={handleClose}>
-        <Pressable
-          className="max-h-[92%] rounded-t-3xl bg-casker-navy"
-          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
-          onPress={(event) => event.stopPropagation()}
-        >
-          <View className="items-center py-3">
-            <View className="h-1 w-12 rounded-full bg-slate-500" />
-          </View>
-
-          <ScrollView
-            className="px-5"
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+      <GestureHandlerRootView style={styles.modalRoot}>
+        <View className="flex-1 justify-end">
+          <Pressable
+            accessibilityLabel="Zavrieť dopyt"
+            onPress={animateClose}
+            style={styles.backdropPressable}
           >
-            {step === "vehicle" ? (
-              <VehicleStep
-                selectedVehicleId={selectedVehicleId}
-                selectedCategory={selectedCategory}
-                onSelectVehicle={setSelectedVehicleId}
-                onSelectCategory={handleCategoryPress}
-              />
-            ) : (
-              <DetailsStep
-                categoryLabel={selectedCategoryLabel}
-                vehicleLabel={selectedVehicle?.label ?? ""}
-                city={city}
-                radiusKm={radiusKm}
-                description={description}
-                onCityChange={setCity}
-                onRadiusChange={setRadiusKm}
-                onDescriptionChange={setDescription}
-                onMyLocation={handleMyLocation}
-                onBack={() => setStep("vehicle")}
-                onSubmit={handleSubmit}
-                onCancel={handleClose}
-              />
-            )}
-          </ScrollView>
-        </Pressable>
-      </Pressable>
+            <Animated.View pointerEvents="none" style={[styles.backdropFill, backdropAnimatedStyle]} />
+          </Pressable>
+
+          <Animated.View
+            className="max-h-[92%] rounded-t-3xl bg-white"
+            style={[sheetAnimatedStyle, { paddingBottom: sheetBottomPadding }]}
+          >
+            <GestureDetector gesture={handlePanGesture}>
+              <View
+                accessibilityLabel="Potiahnite pre zatvorenie dopytu"
+                accessibilityRole="adjustable"
+                style={styles.handleTouchArea}
+              >
+                <View className="h-1.5 w-12 rounded-full bg-slate-300" />
+              </View>
+            </GestureDetector>
+
+            <GestureDetector gesture={scrollGesture}>
+                <Animated.ScrollView
+                  ref={scrollRef}
+                  className="px-5"
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="interactive"
+                  automaticallyAdjustKeyboardInsets
+                  showsVerticalScrollIndicator={false}
+                  onScroll={scrollHandler}
+                  scrollEventThrottle={16}
+                  contentContainerStyle={styles.scrollContent}
+                  bounces
+                >
+                  {step === "vehicle" ? (
+                    <VehicleStep
+                      selectedVehicleId={selectedVehicleId}
+                      selectedCategory={selectedCategory}
+                      onSelectVehicle={setSelectedVehicleId}
+                      onSelectCategory={handleCategoryPress}
+                      onContinue={handleContinueToDetails}
+                    />
+                  ) : (
+                    <DetailsStep
+                      categoryLabel={selectedCategoryLabel}
+                      vehicleLabel={selectedVehicle?.label ?? ""}
+                      city={city}
+                      radiusKm={radiusKm}
+                      description={description}
+                      isLocationLoading={isLocationLoading}
+                      isSubmitting={isSubmitting}
+                      locationError={locationError}
+                      submitError={submitError}
+                      onCityChange={(value) => {
+                        setCity(value);
+                        setLocationCoords(null);
+                        setLocationError(null);
+                      }}
+                      onRadiusChange={setRadiusKm}
+                      onDescriptionChange={setDescription}
+                      onFieldFocus={scrollToFocusedField}
+                      onMyLocation={() => {
+                        void handleMyLocation();
+                      }}
+                      onBack={() => setStep("vehicle")}
+                      onSubmit={() => {
+                        void handleSubmit();
+                      }}
+                      onCancel={animateClose}
+                    />
+                  )}
+                </Animated.ScrollView>
+            </GestureDetector>
+          </Animated.View>
+        </View>
+      </GestureHandlerRootView>
     </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  modalRoot: {
+    flex: 1,
+  },
+  backdropPressable: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backdropFill: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000",
+  },
+  scrollContent: {
+    paddingBottom: 32,
+  },
+  handleTouchArea: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+  },
+  optionDefault: {
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#ffffff",
+  },
+  optionSelected: {
+    borderWidth: 2,
+    borderColor: "#0b194f",
+    backgroundColor: "#f8fafc",
+  },
+});
+
+function VehicleOptionCard({
+  vehicle,
+  isSelected,
+  onPress,
+}: {
+  vehicle: DriverVehicle;
+  isSelected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className="rounded-xl px-4 py-3"
+      style={[buttonShadow, isSelected ? styles.optionSelected : styles.optionDefault]}
+    >
+      <Text className="text-base font-semibold text-casker-navy">{vehicle.label}</Text>
+      <Text className="mt-0.5 text-sm text-slate-500">EČ {vehicle.plate}</Text>
+      <Text className="mt-1 text-xs leading-5 text-slate-600">
+        {formatVehicleSpecsSummary(vehicle)}
+      </Text>
+      <Text className="mt-0.5 text-xs text-slate-500">
+        {vehicle.fuelType} · {vehicle.transmission} · {vehicle.engineVolume}
+      </Text>
+    </Pressable>
+  );
+}
+
+function ServiceCategoryCard({
+  categoryId,
+  label,
+  isSelected,
+  onPress,
+}: {
+  categoryId: RequestCategoryId;
+  label: string;
+  isSelected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
+      className="flex-row items-center justify-center gap-3 rounded-2xl py-4"
+      style={[buttonShadow, isSelected ? styles.optionSelected : styles.optionDefault]}
+    >
+      <ServiceCategoryIcon
+        categoryId={categoryId}
+        color={isSelected ? "#0b194f" : "#0b194f"}
+      />
+      <Text className="text-lg font-bold text-casker-navy">{label}</Text>
+    </Pressable>
   );
 }
 
@@ -146,62 +545,63 @@ function VehicleStep({
   selectedCategory,
   onSelectVehicle,
   onSelectCategory,
+  onContinue,
 }: {
   selectedVehicleId: string | null;
   selectedCategory: RequestCategoryId | null;
   onSelectVehicle: (id: string) => void;
   onSelectCategory: (id: RequestCategoryId) => void;
+  onContinue: () => void;
 }) {
   return (
     <View className="pb-6">
-      <Text className="text-center text-2xl font-black tracking-wide text-white">cAsker</Text>
-      <Text className="mt-1 text-center text-base font-semibold text-slate-300">Dopyt</Text>
+      <Text className="text-center text-2xl font-black tracking-wide text-casker-navy">cAsker</Text>
+      <Text className="mt-1 text-center text-base font-semibold text-casker-navy/80">Dopyt</Text>
 
-      <Text className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-400">
+      <Text className="mt-6 text-sm font-semibold uppercase tracking-wide text-casker-navy/60">
         Vyberte vozidlo
       </Text>
 
       <View className="mt-3 gap-2">
-        {VEHICLES.map((vehicle) => {
+        {DRIVER_VEHICLES.map((vehicle) => {
           const isSelected = selectedVehicleId === vehicle.id;
           return (
-            <Pressable
+            <VehicleOptionCard
               key={vehicle.id}
+              vehicle={vehicle}
+              isSelected={isSelected}
               onPress={() => onSelectVehicle(vehicle.id)}
-              className={`rounded-xl border px-4 py-3 ${
-                isSelected
-                  ? "border-blue-400 bg-casker-navy-light"
-                  : "border-slate-600 bg-slate-800/80"
-              }`}
-            >
-              <Text className="text-base font-semibold text-white">{vehicle.label}</Text>
-              <Text className="mt-0.5 text-sm text-slate-400">EČ {vehicle.plate}</Text>
-            </Pressable>
+            />
           );
         })}
       </View>
 
       {selectedVehicleId ? (
         <View className="mt-6">
-          <Text className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          <Text className="mb-3 text-sm font-semibold uppercase tracking-wide text-casker-navy/60">
             Typ služby
           </Text>
           <View className="gap-3">
             {CATEGORIES.map((category) => (
-              <Pressable
+              <ServiceCategoryCard
                 key={category.id}
+                categoryId={category.id}
+                label={category.label}
+                isSelected={selectedCategory === category.id}
                 onPress={() => onSelectCategory(category.id)}
-                className={`flex-row items-center justify-center gap-3 rounded-2xl border py-4 ${
-                  selectedCategory === category.id
-                    ? "border-blue-400 bg-blue-600/30"
-                    : "border-slate-600 bg-slate-800"
-                }`}
-              >
-                <FontAwesome name={category.icon} size={20} color="#e2e8f0" />
-                <Text className="text-lg font-bold text-white">{category.label}</Text>
-              </Pressable>
+              />
             ))}
           </View>
+
+          {selectedCategory ? (
+            <Pressable
+              onPress={onContinue}
+              className="mt-5 items-center rounded-2xl bg-casker-navy py-4 active:opacity-90"
+              style={buttonShadow}
+            >
+              <Text className="text-base font-bold text-white">Pokračovať</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -214,9 +614,14 @@ function DetailsStep({
   city,
   radiusKm,
   description,
+  isLocationLoading,
+  isSubmitting,
+  locationError,
+  submitError,
   onCityChange,
   onRadiusChange,
   onDescriptionChange,
+  onFieldFocus,
   onMyLocation,
   onBack,
   onSubmit,
@@ -227,9 +632,14 @@ function DetailsStep({
   city: string;
   radiusKm: number;
   description: string;
+  isLocationLoading: boolean;
+  isSubmitting: boolean;
+  locationError: string | null;
+  submitError: string | null;
   onCityChange: (value: string) => void;
   onRadiusChange: (value: number) => void;
   onDescriptionChange: (value: string) => void;
+  onFieldFocus: () => void;
   onMyLocation: () => void;
   onBack: () => void;
   onSubmit: () => void;
@@ -237,13 +647,17 @@ function DetailsStep({
 }) {
   return (
     <View className="pb-4">
-      <Pressable onPress={onBack} className="mb-4 flex-row items-center gap-2 self-start">
-        <FontAwesome name="chevron-left" size={14} color="#94a3b8" />
-        <Text className="text-sm font-medium text-slate-400">Späť</Text>
+      <Pressable
+        onPress={onBack}
+        className="mb-4 flex-row items-center gap-2 self-start rounded-lg bg-white px-2 py-1"
+        style={buttonShadow}
+      >
+        <FontAwesome name="chevron-left" size={14} color="#0b194f" />
+        <Text className="text-sm font-medium text-casker-navy/70">Späť</Text>
       </Pressable>
 
-      <Text className="text-xl font-bold text-white">Kde hľadám dopyt</Text>
-      <Text className="mt-1 text-sm text-slate-400">
+      <Text className="text-xl font-bold text-casker-navy">Kde hľadám dopyt</Text>
+      <Text className="mt-1 text-sm text-slate-500">
         {categoryLabel}
         {vehicleLabel ? ` · ${vehicleLabel}` : ""}
       </Text>
@@ -251,30 +665,39 @@ function DetailsStep({
       <View className="mt-5 flex-row items-center gap-2">
         <Pressable
           onPress={onMyLocation}
-          className="flex-row items-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-4 py-3"
+          disabled={isLocationLoading || isSubmitting}
+          className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 active:bg-slate-50 disabled:opacity-60"
+          style={buttonShadow}
         >
-          <FontAwesome name="location-arrow" size={16} color="#60a5fa" />
-          <Text className="text-sm font-semibold text-blue-300">Moja poloha</Text>
+          <FontAwesome name="location-arrow" size={16} color="#0b194f" />
+          <Text className="text-sm font-semibold text-casker-navy">
+            {isLocationLoading ? "Načítavam polohu…" : "Moja poloha"}
+          </Text>
         </Pressable>
       </View>
 
-      <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      {locationError ? (
+        <Text className="mt-2 text-sm text-red-600">{locationError}</Text>
+      ) : null}
+
+      <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">
         Mesto / lokalita
       </Text>
       <TextInput
         value={city}
         onChangeText={onCityChange}
+        onFocus={onFieldFocus}
         placeholder="Napr. Košice"
-        placeholderTextColor="#64748b"
-        className="mt-2 rounded-xl border border-slate-600 bg-slate-800 px-4 py-3 text-base text-white"
+        placeholderTextColor="#94a3b8"
+        className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-casker-navy"
       />
 
-      <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">
         V okolí
       </Text>
       <View className="mt-2 flex-row items-center justify-between">
-        <Text className="text-sm text-slate-300">Vzdialenosť</Text>
-        <Text className="text-lg font-bold text-white">{Math.round(radiusKm)} km</Text>
+        <Text className="text-sm text-slate-600">Vzdialenosť</Text>
+        <Text className="text-lg font-bold text-casker-navy">{Math.round(radiusKm)} km</Text>
       </View>
       <Slider
         minimumValue={5}
@@ -282,37 +705,50 @@ function DetailsStep({
         step={5}
         value={radiusKm}
         onValueChange={onRadiusChange}
-        minimumTrackTintColor="#3b82f6"
-        maximumTrackTintColor="#334155"
-        thumbTintColor="#60a5fa"
+        minimumTrackTintColor="#2563eb"
+        maximumTrackTintColor="#e2e8f0"
+        thumbTintColor="#0b194f"
         style={{ width: "100%", height: 40 }}
       />
 
-      <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">
         Popis
       </Text>
       <TextInput
         value={description}
         onChangeText={onDescriptionChange}
+        onFocus={onFieldFocus}
         placeholder="Opíšte závadu alebo čo potrebujete…"
-        placeholderTextColor="#64748b"
+        placeholderTextColor="#94a3b8"
         multiline
         textAlignVertical="top"
-        className="mt-2 min-h-[120px] rounded-xl border border-slate-600 bg-slate-800 px-4 py-3 text-base text-white"
+        className="mt-2 min-h-[120px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-casker-navy"
       />
+
+      {submitError ? (
+        <Text className="mt-4 text-sm text-red-600" role="alert">
+          {submitError}
+        </Text>
+      ) : null}
 
       <Pressable
         onPress={onSubmit}
-        className="mt-6 items-center rounded-2xl bg-blue-600 py-4 active:bg-blue-700"
+        disabled={isSubmitting}
+        className="mt-6 items-center rounded-2xl border border-slate-200 bg-white py-4 active:bg-slate-50 disabled:opacity-60"
+        style={buttonShadow}
       >
-        <Text className="text-base font-bold text-white">Odoslať dopyt</Text>
+        <Text className="text-base font-bold text-casker-navy">
+          {isSubmitting ? "Odosielam…" : "Odoslať dopyt"}
+        </Text>
       </Pressable>
 
       <Pressable
         onPress={onCancel}
-        className="mt-3 items-center rounded-2xl border border-slate-600 bg-slate-800 py-4 active:bg-slate-700"
+        disabled={isSubmitting}
+        className="mt-3 items-center rounded-2xl border border-slate-200 bg-white py-4 active:bg-slate-50 disabled:opacity-60"
+        style={buttonShadow}
       >
-        <Text className="text-base font-bold text-slate-300">Zrušiť</Text>
+        <Text className="text-base font-bold text-casker-navy">Zrušiť</Text>
       </Pressable>
     </View>
   );

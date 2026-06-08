@@ -44,6 +44,9 @@ export type Request = {
   phone: string;
   createdAt: string;
   rescheduleRequestedAt?: string | null;
+  customerAcceptedAt?: string | null;
+  serviceAcceptedSeenAt?: string | null;
+  serviceInquirySeenAt?: string | null;
   statusBeforeCancel?: RestorableRequestStatus | null;
   completedWork?: string | null;
   vehiclePickupNote?: string | null;
@@ -76,6 +79,9 @@ type RequestRow = {
   phone: string;
   created_at?: string;
   reschedule_requested_at?: string | null;
+  customer_accepted_at?: string | null;
+  service_accepted_seen_at?: string | null;
+  service_inquiry_seen_at?: string | null;
   status_before_cancel?: RestorableRequestStatus | null;
   completed_work?: string | null;
   vehicle_pickup_note?: string | null;
@@ -340,6 +346,9 @@ function mapRequestRow(row: RequestRow): Request {
     phone: row.phone,
     createdAt: row.created_at ?? buildFallbackCreatedAt(row.id),
     rescheduleRequestedAt: row.reschedule_requested_at ?? null,
+    customerAcceptedAt: row.customer_accepted_at ?? null,
+    serviceAcceptedSeenAt: row.service_accepted_seen_at ?? null,
+    serviceInquirySeenAt: row.service_inquiry_seen_at ?? null,
     statusBeforeCancel: row.status_before_cancel ?? null,
     completedWork: row.completed_work ?? null,
     vehiclePickupNote: row.vehicle_pickup_note ?? null,
@@ -403,7 +412,7 @@ export async function upsertRequests(requests: Request[]) {
 }
 
 const REQUEST_SELECT_FIELDS =
-  "id, status, request_category, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at, reschedule_requested_at, status_before_cancel";
+  "id, status, request_category, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at, reschedule_requested_at, customer_accepted_at, service_accepted_seen_at, service_inquiry_seen_at, status_before_cancel";
 
 const REQUEST_SELECT_FIELDS_LEGACY =
   "id, status, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at";
@@ -430,6 +439,32 @@ export async function fetchRequestById(requestId: string) {
   if (!data) return null;
 
   return mapRequestRow(data as RequestRow);
+}
+
+export async function fetchRequestsByIds(requestIds: string[]) {
+  const ids = Array.from(new Set(requestIds.map((id) => id.trim()).filter(Boolean)));
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("requests")
+    .select(REQUEST_SELECT_FIELDS)
+    .in("id", ids)
+    .order("created_at", { ascending: false });
+
+  if (error?.code === "PGRST204") {
+    const fallback = await supabase
+      .from("requests")
+      .select(REQUEST_SELECT_FIELDS_LEGACY)
+      .in("id", ids)
+      .order("created_at", { ascending: false });
+    if (fallback.error) throw fallback.error;
+    return ((fallback.data ?? []) as RequestRow[]).map(mapRequestRow);
+  }
+
+  if (error) throw error;
+  return ((data ?? []) as RequestRow[]).map(mapRequestRow);
 }
 
 export async function fetchRequests(options?: { allowFallback?: boolean }) {
@@ -678,6 +713,55 @@ export function hasCustomerRescheduleRequest(
   appointment?: { reschedule_requested_at?: string | null } | null,
 ) {
   return Boolean(request.rescheduleRequestedAt || appointment?.reschedule_requested_at);
+}
+
+export function hasUnseenCustomerAcceptance(
+  request: Pick<
+    Request,
+    "status" | "customerAcceptedAt" | "serviceAcceptedSeenAt"
+  >,
+) {
+  return (
+    request.status === "done" &&
+    Boolean(request.customerAcceptedAt) &&
+    !request.serviceAcceptedSeenAt
+  );
+}
+
+export function hasUnseenInquiry(
+  request: Pick<Request, "status" | "serviceInquirySeenAt">,
+) {
+  return request.status === "inquiry" && !request.serviceInquirySeenAt;
+}
+
+export async function acknowledgeCustomerAcceptance(requestId: string) {
+  const timestamp = new Date().toISOString();
+  const { error } = await supabase
+    .from("requests")
+    .update({
+      service_accepted_seen_at: timestamp,
+      updated_at: timestamp,
+    })
+    .eq("id", requestId)
+    .eq("status", "done");
+
+  if (error?.code === "PGRST204") return;
+  if (error) throw error;
+}
+
+export async function acknowledgeInquiry(requestId: string) {
+  const timestamp = new Date().toISOString();
+  const { error } = await supabase
+    .from("requests")
+    .update({
+      service_inquiry_seen_at: timestamp,
+      updated_at: timestamp,
+    })
+    .eq("id", requestId)
+    .eq("status", "inquiry");
+
+  if (error?.code === "PGRST204") return;
+  if (error) throw error;
 }
 
 export function getCustomerRescheduleRequestedAt(

@@ -1,5 +1,6 @@
 import { MapPin, Navigation, X } from "lucide-react";
 import { buildGoogleMapsDirectionsUrl } from "@/lib/google-maps-navigation";
+import { getInquiryUserDescription } from "@/lib/inquiry-description";
 import { formatRequestCategoryLabel } from "@/lib/requests";
 import type { RequestMapPoint } from "@/lib/request-map";
 
@@ -38,7 +39,9 @@ export function MapMarkerDetailCard({ point, onClose }: MapMarkerDetailCardProps
       <p className="casker-map-marker-card-service">{point.service}</p>
       <div className="casker-map-marker-card-fault">
         <p className="casker-map-marker-card-fault-label">Popis závady</p>
-        <div className="casker-map-marker-card-fault-box">{point.inquiryDescription}</div>
+        <div className="casker-map-marker-card-fault-box">
+          {getInquiryUserDescription(point.inquiryDescription) || point.inquiryDescription}
+        </div>
       </div>
       <a
         href={directionsUrl}

@@ -26,3 +26,43 @@
 .casker-inquiry-message.is-reschedule-alert .casker-inquiry-reschedule-row {
   padding-right: 1.25rem;
 }
+
+.casker-request-card-wrap.has-accepted-notification {
+  border-radius: 1rem;
+  box-shadow: 0 0 0 2px #16a34a;
+}
+
+.casker-request-card-wrap.has-accepted-notification .casker-request-card {
+  border: 2px solid #16a34a;
+  padding: calc(0.75rem - 1px);
+  background: linear-gradient(145deg, #ecfdf3 0%, #d1fae5 52%, #bbf7d0 100%);
+}
+
+.casker-request-card-wrap.has-accepted-notification .casker-request-card:hover {
+  border-color: #16a34a;
+}
+
+.casker-request-card-wrap.has-accepted-notification .casker-request-card.is-selected {
+  border: 2px solid #16a34a;
+  padding: calc(0.75rem - 1px);
+}
+
+.casker-request-card-wrap.has-inquiry-notification {
+  border-radius: 1rem;
+  box-shadow: 0 0 0 2px #6c9cbd;
+}
+
+.casker-request-card-wrap.has-inquiry-notification .casker-request-card {
+  border: 2px solid #6c9cbd;
+  padding: calc(0.75rem - 1px);
+  background: linear-gradient(145deg, #f0f7fc 0%, #dbeaf5 52%, #c5dff0 100%);
+}
+
+.casker-request-card-wrap.has-inquiry-notification .casker-request-card:hover {
+  border-color: #6c9cbd;
+}
+
+.casker-request-card-wrap.has-inquiry-notification .casker-request-card.is-selected {
+  border: 2px solid #6c9cbd;
+  padding: calc(0.75rem - 1px);
+}

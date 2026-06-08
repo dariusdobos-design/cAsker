@@ -56,15 +56,21 @@ import {
   cancelRequest,
   completeRequest,
   fetchRequestById,
+  acknowledgeCustomerAcceptance,
+  acknowledgeInquiry,
+  compareRequestsByCreatedAt,
   fetchRequests,
+  formatHistoryDateLabel,
   formatRequestCreatedTime,
   hasCustomerRescheduleRequest,
+  hasUnseenCustomerAcceptance,
+  hasUnseenInquiry,
   getCustomerRescheduleRequestedAt,
   getRequestCategoryCardClass,
-  groupRequestsByCreatedDate,
   matchesRequestSearchQuery,
   sortRequestsByCreatedAt,
   subscribeToRequestChanges,
+  toHistoryDateKey,
   type Request,
 } from "@/lib/requests";
 import { SERVICE_DISPLAY_NAME } from "@/lib/service-config";
@@ -83,6 +89,10 @@ import {
   type VehicleCategoryFilter,
 } from "@/lib/service-location";
 import { getInquiryCategoryAvailability } from "@/lib/inquiry-packages";
+import {
+  getInquiryUserDescription,
+  truncateInquiryCardDescription,
+} from "@/lib/inquiry-description";
 import { getSupabaseErrorMessage } from "@/lib/supabase-error";
 import {
   companyProfileToForm,
@@ -193,6 +203,7 @@ type ChatMessage = {
   text: string;
   from: "service" | "customer";
   sentAt: Date;
+  readAt?: string | null;
 };
 
 function createChatMessage(
@@ -287,23 +298,98 @@ function ChatPanel({
   onClose,
 }: ChatPanelProps) {
   const [height, setHeight] = useState(CHAT_DEFAULT_HEIGHT);
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    createChatMessage(
-      request.inquiryDescription,
-      "customer",
-      new Date(Date.now() - 2 * 60 * 60 * 1000),
-    ),
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const resizeStateRef = useRef<{ startY: number; startHeight: number } | null>(
     null,
   );
-  const chatTimeline = useMemo(() => buildChatTimeline(messages), [messages]);
+
+  const displayMessages = useMemo(() => {
+    const inquiry = request.inquiryDescription.trim();
+    const seeded = inquiry
+      ? [
+          createChatMessage(
+            inquiry,
+            "customer",
+            request.createdAt ? new Date(request.createdAt) : new Date(),
+          ),
+        ]
+      : [];
+
+    const hasInquiryAlready = messages.some(
+      (message) => message.from === "customer" && message.text.trim() === inquiry,
+    );
+
+    return hasInquiryAlready ? messages : [...seeded, ...messages];
+  }, [messages, request.createdAt, request.inquiryDescription]);
+
+  const chatTimeline = useMemo(() => buildChatTimeline(displayMessages), [displayMessages]);
+
+  const loadMessages = useCallback(async () => {
+    try {
+      const response = await fetch("/api/requests/messages/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: request.id }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            messages?: Array<{
+              id: string;
+              senderRole: "service" | "customer";
+              body: string;
+              createdAt: string;
+              readAt?: string | null;
+            }>;
+          }
+        | null;
+
+      if (!response.ok || !payload?.messages) {
+        return;
+      }
+
+      setMessages(
+        payload.messages.map((message) => ({
+          id: message.id,
+          text: message.body,
+          from: message.senderRole,
+          sentAt: new Date(message.createdAt),
+          readAt: message.readAt ?? null,
+        })),
+      );
+    } catch (error) {
+      console.error("Chat sa nepodarilo načítať:", error);
+    }
+  }, [request.id]);
+
+  const markMessagesRead = useCallback(async () => {
+    try {
+      await fetch("/api/requests/messages/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: request.id, reader: "service" }),
+      });
+    } catch (error) {
+      console.error("Stav prečítania chatu sa nepodarilo uložiť:", error);
+    }
+  }, [request.id]);
+
+  useEffect(() => {
+    void loadMessages();
+    void markMessagesRead();
+
+    const intervalId = window.setInterval(() => {
+      void loadMessages();
+    }, 4000);
+
+    return () => window.clearInterval(intervalId);
+  }, [loadMessages, markMessagesRead]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [displayMessages]);
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -342,13 +428,34 @@ function ChatPanel({
     document.body.style.userSelect = "none";
   };
 
-  const handleSendMessage = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const text = draft.trim();
-    if (!text) return;
+    if (!text || isSending) return;
 
-    setMessages((current) => [...current, createChatMessage(text, "service")]);
-    setDraft("");
+    setIsSending(true);
+    try {
+      const response = await fetch("/api/requests/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: request.id,
+          text,
+          senderRole: "service",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Správu sa nepodarilo odoslať.");
+      }
+
+      setDraft("");
+      await loadMessages();
+    } catch (error) {
+      console.error("Odoslanie chat správy zlyhalo:", error);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -411,6 +518,9 @@ function ChatPanel({
                   </time>
                 </div>
                 <p className="casker-chat-message-text">{message.text}</p>
+                {isOutgoing && message.readAt ? (
+                  <span className="casker-chat-message-read">Videné</span>
+                ) : null}
               </div>
             );
           })}
@@ -427,8 +537,8 @@ function ChatPanel({
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
         />
-        <button type="submit" className="casker-chat-send-btn">
-          Odoslať
+        <button type="submit" className="casker-chat-send-btn" disabled={isSending}>
+          {isSending ? "Odosielam…" : "Odoslať"}
         </button>
       </form>
     </div>
@@ -609,41 +719,163 @@ function CompleteConfirmDialog({
   );
 }
 
+type SidebarEntry = {
+  key: string;
+  request: Request;
+  appointment: Appointment | null;
+};
+
+function compareSidebarEntries(left: SidebarEntry, right: SidebarEntry) {
+  const createdCompare = compareRequestsByCreatedAt(left.request, right.request);
+  if (createdCompare !== 0) {
+    return createdCompare;
+  }
+
+  if (left.appointment && right.appointment) {
+    const dateCompare = left.appointment.appointment_date.localeCompare(
+      right.appointment.appointment_date,
+    );
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return left.appointment.appointment_time.localeCompare(
+      right.appointment.appointment_time,
+    );
+  }
+
+  return left.key.localeCompare(right.key);
+}
+
+function buildSidebarEntries(
+  activeState: SidebarState,
+  filteredRequests: Request[],
+  calendarAppointments: Appointment[],
+  requests: Request[],
+  pendingByRequestId: Map<string, Appointment>,
+  acceptedByRequestId: Map<string, Appointment>,
+): SidebarEntry[] {
+  if (activeState === "inquiry") {
+    return filteredRequests.map((request) => ({
+      key: request.id,
+      request,
+      appointment: null,
+    }));
+  }
+
+  const requestIds = new Set(filteredRequests.map((request) => request.id));
+  const entries: SidebarEntry[] = [];
+
+  for (const appointment of calendarAppointments) {
+    const request = findRequestForAppointment(appointment, requests);
+    if (!request || !requestIds.has(request.id)) {
+      continue;
+    }
+
+    entries.push({
+      key: appointment.id,
+      request,
+      appointment,
+    });
+  }
+
+  const coveredRequestIds = new Set(entries.map((entry) => entry.request.id));
+  for (const request of filteredRequests) {
+    if (coveredRequestIds.has(request.id)) {
+      continue;
+    }
+
+    const pending = pendingByRequestId.get(request.id) ?? null;
+    const accepted = acceptedByRequestId.get(request.id) ?? null;
+    const appointment =
+      activeState === "waiting" ? pending : (accepted ?? pending);
+
+    entries.push({
+      key: request.id,
+      request,
+      appointment,
+    });
+  }
+
+  return [...entries].sort(compareSidebarEntries);
+}
+
+function groupSidebarEntriesByCreatedDate(entries: SidebarEntry[]) {
+  const groups = new Map<string, SidebarEntry[]>();
+
+  for (const entry of [...entries].sort(compareSidebarEntries)) {
+    const dateKey = toHistoryDateKey(entry.request.createdAt);
+    const bucket = groups.get(dateKey) ?? [];
+    bucket.push(entry);
+    groups.set(dateKey, bucket);
+  }
+
+  return Array.from(groups.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([dateKey, items]) => ({
+      dateKey,
+      label: formatHistoryDateLabel(dateKey),
+      entries: items,
+    }));
+}
+
 function SidebarRequestCard({
+  entryKey,
   request,
   activeState,
   isSelected,
   cardAppointment,
   hasRescheduleNotification,
+  hasAcceptedNotification,
+  hasInquiryNotification,
   distanceKm,
   onSelect,
   onCancel,
 }: {
+  entryKey: string;
   request: Request;
   activeState: SidebarState;
   isSelected: boolean;
   cardAppointment: Appointment | null;
   hasRescheduleNotification: boolean;
+  hasAcceptedNotification: boolean;
+  hasInquiryNotification: boolean;
   distanceKm: number;
-  onSelect: (id: string) => void;
+  onSelect: (requestId: string, appointmentId?: string) => void;
   onCancel: (request: Request) => void;
 }) {
   const isScheduledCard = activeState === "waiting" || activeState === "done";
   const categoryClass = getRequestCategoryCardClass(request.requestCategory);
+  const cardDescription = truncateInquiryCardDescription(
+    getInquiryUserDescription(request.inquiryDescription),
+  );
+
+  const attentionClassName = hasRescheduleNotification
+    ? " has-reschedule-notification"
+    : hasAcceptedNotification
+      ? " has-accepted-notification"
+      : hasInquiryNotification
+        ? " has-inquiry-notification"
+        : "";
 
   return (
     <div
-      className={`casker-request-card-wrap${hasRescheduleNotification ? " has-reschedule-notification" : ""}`}
+      id={`sidebar-entry-${entryKey}`}
+      className={`casker-request-card-wrap${attentionClassName}`}
     >
       <button
         type="button"
         className={`casker-request-card ${isSelected ? "is-selected" : ""}${isScheduledCard ? " has-card-schedule" : ""}${categoryClass ? ` ${categoryClass}` : ""}`}
-        onClick={() => onSelect(request.id)}
+        onClick={() => onSelect(request.id, cardAppointment?.id)}
         aria-pressed={isSelected}
         aria-label={
           hasRescheduleNotification
             ? `${request.vehicleName} ${request.year}, zákazník žiada o zmenu termínu`
-            : undefined
+            : hasAcceptedNotification
+              ? `${request.vehicleName} ${request.year}, zákazník prijal termín`
+              : hasInquiryNotification
+                ? `${request.vehicleName} ${request.year}, nový dopyt`
+                : undefined
         }
       >
         <div className="casker-request-card-main flex w-full items-start gap-2">
@@ -658,7 +890,9 @@ function SidebarRequestCard({
             <h3 className="casker-request-card-title">
               {request.vehicleName} {request.year}
             </h3>
-            <p className="casker-request-service text-red-600">{request.service}</p>
+            {cardDescription ? (
+              <p className="casker-request-service text-red-600">{cardDescription}</p>
+            ) : null}
           </div>
         </div>
 
@@ -730,6 +964,7 @@ function InquiryDescriptionPanel({
   pendingAppointment,
   acceptedAppointment,
   proposals,
+  serviceInfo,
   onCustomerRescheduleRequest,
   onAppointmentUpdated,
 }: {
@@ -737,6 +972,12 @@ function InquiryDescriptionPanel({
   pendingAppointment: Appointment | null;
   acceptedAppointment: Appointment | null;
   proposals: AppointmentProposal[];
+  serviceInfo?: {
+    companyName: string;
+    serviceAddress: string;
+    serviceCity: string;
+    serviceZip: string;
+  };
   onCustomerRescheduleRequest: () => Promise<void>;
   onAppointmentUpdated: (requestId: string) => void;
 }) {
@@ -803,7 +1044,10 @@ function InquiryDescriptionPanel({
       <div className="casker-inquiry-chat">
         <div className="casker-inquiry-message is-customer">
           <p className="casker-inquiry-message-author">{request.userName}</p>
-          <p className="casker-inquiry-message-text">{request.inquiryDescription}</p>
+          <p className="casker-inquiry-message-text">
+            {getInquiryUserDescription(request.inquiryDescription) ||
+              request.inquiryDescription}
+          </p>
         </div>
 
         {proposalTimeline.map((proposal) => (
@@ -904,6 +1148,7 @@ function InquiryDescriptionPanel({
       {isInquiry ? (
         <BookingPopover
           request={request}
+          serviceInfo={serviceInfo}
           anchorRef={respondBtnRef}
           isOpen={bookingOpen}
           onClose={() => setBookingOpen(false)}
@@ -915,6 +1160,7 @@ function InquiryDescriptionPanel({
         <ReschedulePopover
           request={request}
           currentAppointment={pendingAppointment}
+          serviceInfo={serviceInfo}
           anchorRef={waitingRescheduleBtnRef}
           isOpen={rescheduleOpen}
           onClose={() => setRescheduleOpen(false)}
@@ -928,6 +1174,7 @@ function InquiryDescriptionPanel({
 function RequestDetailPanel({
   request,
   serviceLocation,
+  serviceDisplayName,
   pendingAppointment,
   acceptedAppointment,
   proposals,
@@ -937,6 +1184,7 @@ function RequestDetailPanel({
 }: {
   request: Request;
   serviceLocation: ServiceLocation;
+  serviceDisplayName: string;
   pendingAppointment: Appointment | null;
   acceptedAppointment: Appointment | null;
   proposals: AppointmentProposal[];
@@ -944,6 +1192,12 @@ function RequestDetailPanel({
   onRequestCompleted: (requestId: string) => void;
   onCustomerRescheduleRequest: (requestId: string) => Promise<void>;
 }) {
+  const appointmentServiceInfo = {
+    companyName: serviceDisplayName,
+    serviceAddress: serviceLocation.address,
+    serviceCity: serviceLocation.city,
+    serviceZip: serviceLocation.zipCode,
+  };
   const [chatOpen, setChatOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
@@ -1068,6 +1322,7 @@ function RequestDetailPanel({
           pendingAppointment={pendingAppointment}
           acceptedAppointment={acceptedAppointment}
           proposals={proposals}
+          serviceInfo={appointmentServiceInfo}
           onCustomerRescheduleRequest={() => onCustomerRescheduleRequest(request.id)}
           onAppointmentUpdated={onAppointmentCreated}
         />
@@ -1103,10 +1358,17 @@ function RequestDetailPanel({
             {request.status !== "inquiry" ? (
               <div className={`casker-detail-actions${isDone ? " is-done" : ""}`}>
                 {isWaiting ? (
-                  <span className="casker-waiting-status-label">
-                    <CalendarClock className="h-3.5 w-3.5" strokeWidth={2.35} />
-                    Termín odoslaný
-                  </span>
+                  <button
+                    ref={chatBtnRef}
+                    type="button"
+                    className="casker-chat-btn"
+                    onClick={toggleChat}
+                    aria-label="Chat"
+                    aria-expanded={chatOpen}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" strokeWidth={2.35} />
+                    Chat
+                  </button>
                 ) : isDone ? (
                   <>
                     <button
@@ -1173,6 +1435,7 @@ function RequestDetailPanel({
             <ReschedulePopover
               request={request}
               currentAppointment={acceptedAppointment ?? pendingAppointment}
+              serviceInfo={appointmentServiceInfo}
               anchorRef={rescheduleBtnRef}
               isOpen={rescheduleOpen}
               onClose={() => setRescheduleOpen(false)}
@@ -1385,6 +1648,9 @@ export default function Home() {
   const [viewportFocusRequestId, setViewportFocusRequestId] = useState<
     string | null
   >(null);
+  const pendingSidebarScrollEntryKeyRef = useRef<string | null>(null);
+  const [selectedCalendarAppointmentId, setSelectedCalendarAppointmentId] =
+    useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchRadius, setSearchRadius] = useState(150);
   const [appliedRadius, setAppliedRadius] = useState(150);
@@ -1473,6 +1739,11 @@ export default function Home() {
     [pendingAppointments, requests],
   );
 
+  const inquiryAttentionCount = useMemo(
+    () => requests.filter((request) => hasUnseenInquiry(request)).length,
+    [requests],
+  );
+
   const waitingAttentionCount = useMemo(
     () =>
       requests.filter(
@@ -1484,6 +1755,11 @@ export default function Home() {
           ),
       ).length,
     [requests, pendingByRequestId],
+  );
+
+  const doneAttentionCount = useMemo(
+    () => requests.filter((request) => hasUnseenCustomerAcceptance(request)).length,
+    [requests],
   );
 
   const proposalsByRequestId = useMemo(
@@ -1521,6 +1797,36 @@ export default function Home() {
         requests,
       ),
     [acceptedAppointments, pendingAppointments, requests],
+  );
+
+  const calendarFocusedAppointment = useMemo(
+    () =>
+      calendarAppointments.find(
+        (appointment) => appointment.id === selectedCalendarAppointmentId,
+      ) ?? null,
+    [calendarAppointments, selectedCalendarAppointmentId],
+  );
+
+  const resolveRequestAppointments = useCallback(
+    (requestId: string) => {
+      const pending = pendingByRequestId.get(requestId) ?? null;
+      const accepted = acceptedByRequestId.get(requestId) ?? null;
+      const focused =
+        calendarFocusedAppointment?.request_id === requestId
+          ? calendarFocusedAppointment
+          : null;
+
+      if (!focused) {
+        return { pending, accepted };
+      }
+
+      if (focused.status === "accepted") {
+        return { pending, accepted: focused };
+      }
+
+      return { pending: focused, accepted };
+    },
+    [acceptedByRequestId, calendarFocusedAppointment, pendingByRequestId],
   );
 
   useEffect(() => {
@@ -1634,10 +1940,64 @@ export default function Home() {
     [activeSearchQuery, baseFilteredRequests, getSearchAppointment],
   );
 
-  const groupedRequests = useMemo(
-    () => groupRequestsByCreatedDate(filteredRequests),
-    [filteredRequests],
+  const sidebarEntries = useMemo(
+    () =>
+      buildSidebarEntries(
+        activeState,
+        filteredRequests,
+        calendarAppointments,
+        requests,
+        pendingByRequestId,
+        acceptedByRequestId,
+      ),
+    [
+      activeState,
+      filteredRequests,
+      calendarAppointments,
+      requests,
+      pendingByRequestId,
+      acceptedByRequestId,
+    ],
   );
+
+  const filteredSidebarEntries = useMemo(
+    () =>
+      activeSearchQuery
+        ? sidebarEntries.filter((entry) =>
+            matchesRequestSearchQuery(
+              entry.request,
+              activeSearchQuery,
+              entry.appointment ?? getSearchAppointment(entry.request.id),
+            ),
+          )
+        : sidebarEntries,
+    [activeSearchQuery, getSearchAppointment, sidebarEntries],
+  );
+
+  const groupedSidebarEntries = useMemo(
+    () => groupSidebarEntriesByCreatedDate(filteredSidebarEntries),
+    [filteredSidebarEntries],
+  );
+
+  useEffect(() => {
+    const entryKey = pendingSidebarScrollEntryKeyRef.current;
+    if (!entryKey) {
+      return;
+    }
+
+    const card = document.getElementById(`sidebar-entry-${entryKey}`);
+    if (!card) {
+      return;
+    }
+
+    pendingSidebarScrollEntryKeyRef.current = null;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [
+    selectedRequestId,
+    selectedCalendarAppointmentId,
+    activeState,
+    filteredSidebarEntries,
+  ]);
 
   const selectedRequest = useMemo(() => {
     if (!selectedRequestId) return null;
@@ -1673,7 +2033,15 @@ export default function Home() {
     getSearchAppointment,
   ]);
 
-  const handleSelectRequest = (id: string) => {
+  const handleSelectRequest = (
+    id: string,
+    source: "sidebar" | "calendar" = "sidebar",
+    appointmentId?: string | null,
+  ) => {
+    if (source === "sidebar") {
+      setSelectedCalendarAppointmentId(appointmentId ?? null);
+    }
+
     setSelectedRequestId(id);
     const request = requests.find((item) => item.id === id);
     if (request && shouldShowRequestOnMap(request)) {
@@ -1683,9 +2051,40 @@ export default function Home() {
       setMapFocusedRequestId(null);
       setViewportFocusRequestId(null);
     }
+
+    if (request && hasUnseenCustomerAcceptance(request)) {
+      const seenAt = new Date().toISOString();
+      setRequests((current) =>
+        current.map((item) =>
+          item.id === id ? { ...item, serviceAcceptedSeenAt: seenAt } : item,
+        ),
+      );
+      void acknowledgeCustomerAcceptance(id).catch((error) => {
+        console.warn(
+          "Potvrdenie notifikácie prijatého termínu zlyhalo:",
+          getSupabaseErrorMessage(error),
+        );
+      });
+    }
+
+    if (request && hasUnseenInquiry(request)) {
+      const seenAt = new Date().toISOString();
+      setRequests((current) =>
+        current.map((item) =>
+          item.id === id ? { ...item, serviceInquirySeenAt: seenAt } : item,
+        ),
+      );
+      void acknowledgeInquiry(id).catch((error) => {
+        console.warn(
+          "Potvrdenie notifikácie nového dopytu zlyhalo:",
+          getSupabaseErrorMessage(error),
+        );
+      });
+    }
   };
 
   const handleMapMarkerSelect = (id: string | null) => {
+    setSelectedCalendarAppointmentId(null);
     setMapFocusedRequestId(id);
     setViewportFocusRequestId(null);
     setSelectedRequestId(id);
@@ -1694,6 +2093,7 @@ export default function Home() {
   const handleStateChange = (state: SidebarState) => {
     setActiveState(state);
     setSelectedRequestId(null);
+    setSelectedCalendarAppointmentId(null);
     setMapFocusedRequestId(null);
     setViewportFocusRequestId(null);
     setFilterOpen(false);
@@ -1835,14 +2235,10 @@ export default function Home() {
     ) {
       setActiveState(matchedRequest.status);
     }
-    setSelectedRequestId(matchedRequest.id);
-    if (shouldShowRequestOnMap(matchedRequest)) {
-      setMapFocusedRequestId(matchedRequest.id);
-      setViewportFocusRequestId(matchedRequest.id);
-    } else {
-      setMapFocusedRequestId(null);
-      setViewportFocusRequestId(null);
-    }
+
+    setSelectedCalendarAppointmentId(appointment.id);
+    pendingSidebarScrollEntryKeyRef.current = appointment.id;
+    handleSelectRequest(matchedRequest.id, "calendar");
   };
 
   const handleAppointmentCreated = (requestId: string) => {
@@ -1970,8 +2366,15 @@ export default function Home() {
               {STATE_ORDER.map((state) => {
                 const { Icon, label } = STATE_CONFIG[state];
                 const isActive = activeState === state;
-                const showWaitingBadge =
-                  state === "waiting" && waitingAttentionCount > 0;
+                const attentionCount =
+                  state === "inquiry"
+                    ? inquiryAttentionCount
+                    : state === "waiting"
+                      ? waitingAttentionCount
+                      : state === "done"
+                        ? doneAttentionCount
+                        : 0;
+                const showAttentionBadge = attentionCount > 0;
 
                 return (
                   <button
@@ -1980,18 +2383,24 @@ export default function Home() {
                     className="casker-state-btn"
                     onClick={() => handleStateChange(state)}
                     aria-label={
-                      showWaitingBadge
-                        ? `${label}, ${waitingAttentionCount} dopytov vyžaduje pozornosť`
+                      showAttentionBadge
+                        ? `${label}, ${attentionCount} ${
+                            state === "inquiry"
+                              ? "nových dopytov"
+                              : state === "done"
+                                ? "nových prijatých termínov"
+                                : "dopytov vyžaduje pozornosť"
+                          }`
                         : label
                     }
                     aria-pressed={isActive}
                   >
-                    {showWaitingBadge ? (
+                    {showAttentionBadge ? (
                       <span
                         className="casker-state-notification-badge"
                         aria-hidden="true"
                       >
-                        {waitingAttentionCount}
+                        {attentionCount}
                       </span>
                     ) : null}
                     <span
@@ -2071,47 +2480,60 @@ export default function Home() {
           </div>
 
           <div className="casker-request-list">
-            {filteredRequests.length === 0 ? (
+            {filteredSidebarEntries.length === 0 ? (
               <p className="py-6 text-center text-sm text-zinc-500">
                 {activeSearchQuery && baseFilteredRequests.length > 0
                   ? `Nenašli sme dopyty pre „${activeSearchQuery}“`
                   : "Žiadne dopyty pre zvolený filter"}
               </p>
             ) : (
-              groupedRequests.map((group) => (
+              groupedSidebarEntries.map((group) => (
                 <section key={group.dateKey} className="casker-request-date-group">
                   <h3 className="casker-request-date-label">{group.label}</h3>
                   <div className="casker-request-date-cards">
-                    {group.requests.map((request) => {
-                      const isSelected = selectedRequestId === request.id;
-                      const pendingAppointment = pendingByRequestId.get(request.id);
-                      const acceptedAppointment = acceptedByRequestId.get(request.id);
+                    {group.entries.map((entry) => {
+                      const { request, appointment, key } = entry;
+                      const isSelected = appointment
+                        ? selectedCalendarAppointmentId === appointment.id
+                        : selectedRequestId === request.id &&
+                          selectedCalendarAppointmentId === null;
                       const cardAppointment =
-                        activeState === "waiting"
-                          ? pendingAppointment
+                        appointment ??
+                        (activeState === "waiting"
+                          ? (pendingByRequestId.get(request.id) ?? null)
                           : activeState === "done"
-                            ? (acceptedAppointment ?? pendingAppointment)
-                            : null;
+                            ? (acceptedByRequestId.get(request.id) ??
+                              pendingByRequestId.get(request.id) ??
+                              null)
+                            : null);
+                      const pendingAppointment = pendingByRequestId.get(request.id) ?? null;
 
                       return (
                         <SidebarRequestCard
-                          key={request.id}
+                          key={key}
+                          entryKey={key}
                           request={request}
                           activeState={activeState}
                           isSelected={isSelected}
-                          cardAppointment={cardAppointment ?? null}
+                          cardAppointment={cardAppointment}
                           hasRescheduleNotification={
                             activeState === "waiting" &&
-                            hasCustomerRescheduleRequest(
-                              request,
-                              pendingAppointment,
-                            )
+                            hasCustomerRescheduleRequest(request, pendingAppointment)
+                          }
+                          hasAcceptedNotification={
+                            activeState === "done" &&
+                            hasUnseenCustomerAcceptance(request)
+                          }
+                          hasInquiryNotification={
+                            activeState === "inquiry" && hasUnseenInquiry(request)
                           }
                           distanceKm={getRequestDistanceFromService(
                             request,
                             appliedServiceLocation,
                           )}
-                          onSelect={handleSelectRequest}
+                          onSelect={(requestId, appointmentId) =>
+                            handleSelectRequest(requestId, "sidebar", appointmentId)
+                          }
                           onCancel={handleRequestCancelClick}
                         />
                       );
@@ -2143,6 +2565,7 @@ export default function Home() {
           onToggle={() => setCalendarOpen((open) => !open)}
           appointments={calendarAppointments}
           requests={requests}
+          selectedAppointmentId={selectedCalendarAppointmentId}
           onSelectAppointment={handleAppointmentSelect}
           onRefresh={refreshDashboardData}
         >
@@ -2168,8 +2591,13 @@ export default function Home() {
               <RequestDetailPanel
                 request={selectedRequest}
                 serviceLocation={appliedServiceLocation}
-                pendingAppointment={pendingByRequestId.get(selectedRequest.id) ?? null}
-                acceptedAppointment={acceptedByRequestId.get(selectedRequest.id) ?? null}
+                serviceDisplayName={companyDisplayName}
+                pendingAppointment={
+                  resolveRequestAppointments(selectedRequest.id).pending
+                }
+                acceptedAppointment={
+                  resolveRequestAppointments(selectedRequest.id).accepted
+                }
                 proposals={proposalsByRequestId.get(selectedRequest.id) ?? []}
                 onAppointmentCreated={handleAppointmentCreated}
                 onRequestCompleted={handleRequestCompleted}

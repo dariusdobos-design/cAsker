@@ -14,6 +14,10 @@ import {
   type Appointment,
 } from "@/lib/appointments";
 import {
+  getInquiryUserDescription,
+  truncateInquiryCardDescription,
+} from "@/lib/inquiry-description";
+import {
   fetchCompletedRequests,
   getRequestCategoryCardClass,
   groupCancelledRequestsByDate,
@@ -289,6 +293,9 @@ export default function HistoryPage() {
                       const categoryClass = getRequestCategoryCardClass(
                         request.requestCategory,
                       );
+                      const cardDescription = truncateInquiryCardDescription(
+                        getInquiryUserDescription(request.inquiryDescription),
+                      );
 
                       return (
                         <button
@@ -310,9 +317,11 @@ export default function HistoryPage() {
                               <h3 className="text-base font-bold leading-tight text-zinc-900">
                                 {request.vehicleName} {request.year}
                               </h3>
-                              <p className="casker-request-service text-red-600">
-                                {request.service}
-                              </p>
+                              {cardDescription ? (
+                                <p className="casker-request-service text-red-600">
+                                  {cardDescription}
+                                </p>
+                              ) : null}
                             </div>
                           </div>
 

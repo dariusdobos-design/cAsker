@@ -1,9 +1,23 @@
-import Svg, { Path } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 
 type StateIconProps = {
   size?: number;
   color?: string;
 };
+
+/** Crosshair „moja poloha“ — rovnaký tvar ako LocateMeIcon v dashboarde. */
+export function MyLocationIcon({
+  size = 22,
+  color = "rgba(255, 255, 255, 0.78)",
+}: StateIconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityRole="image">
+      <Circle cx="12" cy="12" r="3.25" fill={color} />
+      <Circle cx="12" cy="12" r="8.5" fill="none" stroke={color} strokeWidth={2} />
+      <Path fill="none" stroke={color} strokeWidth={2} d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+    </Svg>
+  );
+}
 
 /** Rovnaká ikona ako v dashboarde (auto + kľúč). */
 export function CarWrenchIcon({ size = 40, color = "#ffffff" }: StateIconProps) {

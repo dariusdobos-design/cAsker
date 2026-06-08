@@ -29,7 +29,9 @@ const DEFAULT_CENTER = { lat: 49.22, lng: 18.74 };
 const DEFAULT_ZOOM = 9;
 const SIDEBAR_FOCUS_ZOOM = 12;
 const SERVICE_FOCUS_ZOOM = 15;
-const SERVICE_PIN_ICON = "/icons/service-pin.svg";
+const SERVICE_PIN_ICON = "/icons/service-map-pin.png";
+const SERVICE_PIN_WIDTH = 50;
+const SERVICE_PIN_HEIGHT = 60;
 
 const CASKER_MAP_STYLES: google.maps.MapTypeStyle[] = [
   { elementType: "geometry", stylers: [{ color: "#d2dce6" }] },
@@ -244,8 +246,8 @@ function ServiceMapContent({
 
     return {
       url: SERVICE_PIN_ICON,
-      scaledSize: new google.maps.Size(36, 43),
-      anchor: new google.maps.Point(18, 43),
+      scaledSize: new google.maps.Size(SERVICE_PIN_WIDTH, SERVICE_PIN_HEIGHT),
+      anchor: new google.maps.Point(SERVICE_PIN_WIDTH / 2, SERVICE_PIN_HEIGHT),
     };
   }, [isApiLoaded]);
 

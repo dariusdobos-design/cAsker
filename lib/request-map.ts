@@ -61,14 +61,10 @@ export function hasSharedMapLocation(
   return LOCATION_SHARE_KEYWORDS.some((keyword) => haystack.includes(keyword));
 }
 
-/**
- * Mapa: odťah vždy; autoservis/pneu len pri zdieľanej polohalebo isEmergency.
- * Text dopytu (napr. „núdzový režim“) mapu nesmie zapnúť — len request_category.
- */
+/** Mapa: zatiaľ len odťah (towing) alebo explicitný emergency príznak. */
 export function shouldShowRequestOnMap(request: MapEligibleRequest): boolean {
   if (request.requestCategory === "towing") return true;
-  if (request.isEmergency === true) return true;
-  return hasSharedMapLocation(request);
+  return request.isEmergency === true;
 }
 
 export function getRequestMapPosition(

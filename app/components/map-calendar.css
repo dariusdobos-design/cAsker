@@ -237,6 +237,8 @@
 .casker-calendar-time-track {
   position: relative;
   min-width: 0;
+  padding-inline: 0.1875rem;
+  box-sizing: border-box;
 }
 
 .casker-calendar-time-track.is-week {
@@ -264,7 +266,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  padding-right: 0.125rem;
 }
 
 .casker-calendar-week-view {
@@ -327,25 +328,36 @@
 .casker-calendar-event {
   display: flex;
   width: 100%;
+  box-sizing: border-box;
   flex-direction: column;
   align-items: flex-start;
   gap: 0.125rem;
-  border: 1px solid rgb(11 25 79 / 0.16);
-  border-radius: var(--casker-radius);
+  border: 2px solid rgb(11 25 79 / 0.16);
+  border-radius: calc(var(--casker-radius) - 1px);
   background: rgb(11 25 79 / 0.08);
-  padding: 0.5rem 0.625rem;
+  padding: 0.4375rem 0.5rem;
   text-align: left;
   cursor: pointer;
   transition:
     background-color 0.15s ease,
-    transform 0.15s ease,
-    border-color 0.15s ease;
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .casker-calendar-event:hover {
   background: rgb(11 25 79 / 0.12);
-  border-color: rgb(11 25 79 / 0.24);
-  transform: translateY(-1px);
+  border-color: rgb(11 25 79 / 0.28);
+}
+
+.casker-calendar-event.is-selected {
+  border-color: var(--casker-navy);
+  background: rgb(11 25 79 / 0.16);
+  box-shadow: 0 1px 6px rgb(11 25 79 / 0.12);
+}
+
+.casker-calendar-event.is-selected:hover {
+  background: rgb(11 25 79 / 0.2);
+  border-color: var(--casker-navy);
 }
 
 .casker-calendar-event.is-compact {
