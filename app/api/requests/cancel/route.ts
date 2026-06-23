@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await cancelRequest(existing);
+    await cancelRequest(existing, { reason: "customer" });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[api/requests/cancel]", error);

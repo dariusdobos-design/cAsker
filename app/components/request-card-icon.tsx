@@ -15,7 +15,7 @@ const ELECTRIC_CAR_ICON_SRC = "/icons.svg/electric-car1.svg";
 
 const REQUEST_CATEGORY_ICON_SRC: Partial<Record<RequestCategory, string>> = {
   tire: "/icons/wheel.svg",
-  towing: "/icons/sign.svg",
+  towing: "/icons/towing2.svg",
 };
 
 type RequestCardIconProps = {

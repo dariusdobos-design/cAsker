@@ -269,6 +269,20 @@ export function getRequestDistanceFromService(
   return request.distanceKm;
 }
 
+/** Broadcast dopyty podľa okruhu; priamy dopyt len pre cieľovú firmu. */
+export function isRequestVisibleToCompany(
+  request: Pick<Request, "locationCity" | "distanceKm" | "targetCompanyId">,
+  companyId: string | null | undefined,
+  serviceLocation: ServiceLocation,
+  radiusKm: number,
+) {
+  if (request.targetCompanyId) {
+    return Boolean(companyId && request.targetCompanyId === companyId);
+  }
+
+  return getRequestDistanceFromService(request, serviceLocation) <= radiusKm;
+}
+
 export function canCalculateDistanceForCity(city: string) {
   return resolveCityCoordinatesSync(city) !== null;
 }

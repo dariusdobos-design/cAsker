@@ -1,7 +1,8 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Dimensions,
   Pressable,
   StyleSheet,
@@ -24,22 +25,26 @@ import { RequestChatSheet } from "@/components/request-chat-sheet";
 import { NotificationBadge } from "@/components/notification-badge";
 import {
   cancelDriverRequest,
+  confirmDriverVehiclePickup,
   isActiveDriverRequest,
+  isHistoryDriverRequest,
+  isReceivedDriverRequest,
   type DriverRequestSummary,
   type DriverServiceResponse,
 } from "@/lib/driver-requests-api";
+import { groupDriverHistoryRequests } from "@/lib/driver-history";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
-const SHEET_HEIGHT = SCREEN_HEIGHT;
 const SNAP_FULL = SCREEN_HEIGHT * 0.08;
-const SNAP_HALF = SCREEN_HEIGHT * 0.5;
-const SNAP_HIDDEN = SCREEN_HEIGHT;
-const EXPAND_SNAP_THRESHOLD = SNAP_FULL + (SNAP_HALF - SNAP_FULL) * 0.35;
+const HALF_HEIGHT = SCREEN_HEIGHT * 0.5;
+const FULL_HEIGHT = SCREEN_HEIGHT - SNAP_FULL;
+const EXPAND_HEIGHT_THRESHOLD = HALF_HEIGHT + (FULL_HEIGHT - HALF_HEIGHT) * 0.35;
 const DISMISS_DRAG_PX = 90;
 const DISMISS_VELOCITY = 700;
 const SHEET_CLOSE_MS = 260;
 const SHEET_OPEN_MS = 320;
 const SHEET_SETTLE_MS = 220;
+
 function snapSheetTo(target: number) {
   "worklet";
   return withTiming(target, {
@@ -48,7 +53,7 @@ function snapSheetTo(target: number) {
   });
 }
 
-type MyRequestsTab = "active" | "history";
+type MyRequestsTab = "active" | "received" | "history";
 
 type MyRequestsSheetProps = {
   visible: boolean;
@@ -57,6 +62,10 @@ type MyRequestsSheetProps = {
   isLoading: boolean;
   onReload: (options?: { silent?: boolean }) => Promise<void>;
   activeTabPendingCount?: number;
+  receivedTabPendingCount?: number;
+  historyTabPendingCount?: number;
+  hasUnseenHistoryNotification?: (request: DriverRequestSummary) => boolean;
+  onAcknowledgeHistoryNotification?: (requestId: string) => void;
   onServiceFocus?: (response: DriverServiceResponse) => void;
   focusedServiceResponseId?: string | null;
 };
@@ -68,32 +77,54 @@ export function MyRequestsSheet({
   isLoading,
   onReload,
   activeTabPendingCount = 0,
+  receivedTabPendingCount = 0,
+  historyTabPendingCount = 0,
+  hasUnseenHistoryNotification,
+  onAcknowledgeHistoryNotification,
   onServiceFocus,
   focusedServiceResponseId = null,
 }: MyRequestsSheetProps) {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<MyRequestsTab>("active");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [busyResponseId, setBusyResponseId] = useState<string | null>(null);
   const [chatRequest, setChatRequest] = useState<DriverRequestSummary | null>(null);
   const [chatServiceName, setChatServiceName] = useState("Servis");
 
-  const translateY = useSharedValue(SNAP_HIDDEN);
+  const sheetHeight = useSharedValue(HALF_HEIGHT);
+  const translateY = useSharedValue(HALF_HEIGHT);
   const scrollY = useSharedValue(0);
   const isClosing = useSharedValue(false);
-  const dragStartY = useSharedValue(SNAP_HALF);
+  const dragStartY = useSharedValue(0);
+  const dragStartHeight = useSharedValue(HALF_HEIGHT);
 
   const activeRequests = useMemo(
     () => requests.filter((request) => isActiveDriverRequest(request.status)),
     [requests],
   );
 
-  const historyRequests = useMemo(
-    () => requests.filter((request) => !isActiveDriverRequest(request.status)),
+  const receivedRequests = useMemo(
+    () => requests.filter((request) => isReceivedDriverRequest(request)),
     [requests],
   );
 
-  const visibleRequests = tab === "active" ? activeRequests : historyRequests;
+  const historyRequests = useMemo(
+    () => requests.filter((request) => isHistoryDriverRequest(request)),
+    [requests],
+  );
+
+  const groupedHistoryRequests = useMemo(
+    () => groupDriverHistoryRequests(historyRequests),
+    [historyRequests],
+  );
+
+  const visibleRequests =
+    tab === "active"
+      ? activeRequests
+      : tab === "received"
+        ? receivedRequests
+        : historyRequests;
 
   const finishClose = useCallback(() => {
     isClosing.value = false;
@@ -104,9 +135,10 @@ export function MyRequestsSheet({
     if (isClosing.value) {
       return;
     }
+
     isClosing.value = true;
     translateY.value = withTiming(
-      SNAP_HIDDEN,
+      sheetHeight.value,
       { duration: SHEET_CLOSE_MS, easing: Easing.in(Easing.cubic) },
       (finished) => {
         if (finished) {
@@ -116,7 +148,7 @@ export function MyRequestsSheet({
         }
       },
     );
-  }, [finishClose, isClosing, translateY]);
+  }, [finishClose, isClosing, sheetHeight, translateY]);
 
   useLayoutEffect(() => {
     if (!visible) {
@@ -124,12 +156,36 @@ export function MyRequestsSheet({
     }
     isClosing.value = false;
     scrollY.value = 0;
-    translateY.value = SNAP_HIDDEN;
-    translateY.value = withTiming(SNAP_HALF, {
+    sheetHeight.value = HALF_HEIGHT;
+    translateY.value = HALF_HEIGHT;
+    translateY.value = withTiming(0, {
       duration: SHEET_OPEN_MS,
       easing: Easing.out(Easing.cubic),
     });
-  }, [visible, isClosing, scrollY, translateY]);
+  }, [visible, isClosing, scrollY, sheetHeight, translateY]);
+
+  const handleCloseChat = useCallback(() => {
+    setChatRequest(null);
+  }, []);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    const onBackPress = () => {
+      if (chatRequest !== null) {
+        handleCloseChat();
+        return true;
+      }
+
+      animateClose();
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => subscription.remove();
+  }, [visible, chatRequest, animateClose, handleCloseChat]);
 
   const handleChatRead = useCallback(() => {
     void onReload({ silent: true });
@@ -138,10 +194,6 @@ export function MyRequestsSheet({
   const handleOpenChat = useCallback((request: DriverRequestSummary, serviceName: string) => {
     setChatRequest(request);
     setChatServiceName(serviceName);
-  }, []);
-
-  const handleCloseChat = useCallback(() => {
-    setChatRequest(null);
   }, []);
 
   const handleCancelPress = useCallback(
@@ -174,7 +226,35 @@ export function MyRequestsSheet({
     [onReload],
   );
 
-  const scrollGesture = useMemo(() => Gesture.Native(), []);
+  const handleConfirmPickupPress = useCallback(
+    (request: DriverRequestSummary) => {
+      Alert.alert("Prevzali ste vozidlo?", "Presunie sa do História", [
+        { text: "Zrušiť", style: "cancel" },
+        {
+          text: "Potvrdiť",
+          onPress: () => {
+            void (async () => {
+              setConfirmingId(request.id);
+              try {
+                await confirmDriverVehiclePickup(request.id);
+                await onReload({ silent: true });
+                setTab("history");
+              } catch (confirmError) {
+                const message =
+                  confirmError instanceof Error
+                    ? confirmError.message
+                    : "Prevzatie vozidla sa nepodarilo potvrdiť.";
+                Alert.alert("Chyba", message);
+              } finally {
+                setConfirmingId(null);
+              }
+            })();
+          },
+        },
+      ]);
+    },
+    [onReload],
+  );
 
   const handlePanGesture = useMemo(
     () =>
@@ -183,46 +263,45 @@ export function MyRequestsSheet({
         .failOffsetX([-20, 20])
         .onBegin(() => {
           dragStartY.value = translateY.value;
+          dragStartHeight.value = sheetHeight.value;
         })
         .onUpdate((event) => {
-          const nextY = dragStartY.value + event.translationY;
-          translateY.value = Math.min(Math.max(nextY, SNAP_FULL), SNAP_HIDDEN);
+          const dy = event.translationY;
+
+          if (dy >= 0) {
+            translateY.value = Math.min(dragStartY.value + dy, sheetHeight.value);
+            return;
+          }
+
+          translateY.value = 0;
+          sheetHeight.value = Math.min(FULL_HEIGHT, Math.max(HALF_HEIGHT, dragStartHeight.value - dy));
         })
         .onEnd((event) => {
           const y = translateY.value;
+          const height = sheetHeight.value;
 
           if (
-            y > SNAP_HALF + DISMISS_DRAG_PX ||
-            (event.velocityY > DISMISS_VELOCITY && y > SNAP_HALF * 0.7)
+            y > DISMISS_DRAG_PX ||
+            (event.velocityY > DISMISS_VELOCITY && y > HALF_HEIGHT * 0.25)
           ) {
-            if (!isClosing.value) {
-              isClosing.value = true;
-              translateY.value = withTiming(
-                SNAP_HIDDEN,
-                { duration: SHEET_CLOSE_MS, easing: Easing.in(Easing.cubic) },
-                (finished) => {
-                  if (finished) {
-                    runOnJS(finishClose)();
-                  } else {
-                    isClosing.value = false;
-                  }
-                },
-              );
-            }
+            runOnJS(animateClose)();
             return;
           }
 
-          if (y < EXPAND_SNAP_THRESHOLD || event.velocityY < -DISMISS_VELOCITY) {
-            translateY.value = snapSheetTo(SNAP_FULL);
+          if (height > EXPAND_HEIGHT_THRESHOLD || event.velocityY < -DISMISS_VELOCITY) {
+            sheetHeight.value = snapSheetTo(FULL_HEIGHT);
+            translateY.value = snapSheetTo(0);
             return;
           }
 
-          translateY.value = snapSheetTo(SNAP_HALF);
+          sheetHeight.value = snapSheetTo(HALF_HEIGHT);
+          translateY.value = snapSheetTo(0);
         }),
-    [dragStartY, finishClose, isClosing, translateY],
+    [animateClose, dragStartHeight, dragStartY, sheetHeight, translateY],
   );
 
   const sheetAnimatedStyle = useAnimatedStyle(() => ({
+    height: sheetHeight.value,
     transform: [{ translateY: translateY.value }],
   }));
 
@@ -254,83 +333,118 @@ export function MyRequestsSheet({
         style={[
           styles.sheet,
           sheetAnimatedStyle,
-          { height: SHEET_HEIGHT, paddingBottom: sheetBottomPadding },
+          { paddingBottom: sheetBottomPadding },
         ]}
       >
-            <View className="px-5 pb-1 pt-2">
-              <GestureDetector gesture={handlePanGesture}>
-                <View
-                  accessibilityLabel="Potiahnite pre otvorenie alebo zatvorenie"
-                  accessibilityRole="adjustable"
-                  style={styles.handleTouchArea}
-                >
-                  <View className="h-1.5 w-12 rounded-full bg-slate-300" />
-                </View>
-              </GestureDetector>
-              <Text className="pb-2 text-xl font-bold text-casker-navy">Moje dopyty</Text>
+        <View className="px-5 pb-1 pt-2">
+          <GestureDetector gesture={handlePanGesture}>
+            <View
+              accessibilityLabel="Potiahnite pre otvorenie alebo zatvorenie"
+              accessibilityRole="adjustable"
+              style={styles.handleTouchArea}
+            >
+              <View className="h-1.5 w-12 rounded-full bg-slate-300" />
             </View>
+          </GestureDetector>
+          <Text className="pb-2 text-xl font-bold text-casker-navy">Moje dopyty</Text>
+        </View>
 
-            <View className="flex-row border-b border-slate-200 px-5">
-              <TabButton
-                label="Aktívne"
-                active={tab === "active"}
-                badgeCount={activeTabPendingCount}
-                onPress={() => setTab("active")}
-              />
-              <TabButton
-                label="História"
-                active={tab === "history"}
-                onPress={() => setTab("history")}
-              />
-            </View>
+        <View className="flex-row items-end justify-between border-b border-slate-200 px-5">
+          <View className="flex-row">
+            <TabButton
+              label="Aktívne"
+              active={tab === "active"}
+              badgeCount={activeTabPendingCount}
+              onPress={() => setTab("active")}
+            />
+            <TabButton
+              label="Hotové"
+              active={tab === "received"}
+              badgeCount={receivedTabPendingCount}
+              onPress={() => setTab("received")}
+            />
+          </View>
+          <TabButton
+            label="História"
+            active={tab === "history"}
+            badgeCount={historyTabPendingCount}
+            onPress={() => setTab("history")}
+            align="right"
+          />
+        </View>
 
-              {isLoading ? (
-                <View className="flex-1 items-center justify-center py-16">
-                  <ActivityIndicator size="large" color="#0b194f" />
+        {isLoading ? (
+          <View style={styles.listArea} className="items-center justify-center">
+            <ActivityIndicator size="large" color="#0b194f" />
+          </View>
+        ) : (
+          <Animated.ScrollView
+            style={styles.listArea}
+            className="px-5 pt-4"
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            onScroll={scrollHandler}
+            scrollEventThrottle={16}
+            nestedScrollEnabled
+            bounces
+          >
+            {visibleRequests.length === 0 ? (
+              <View className="items-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10">
+                <Text className="text-center text-base text-slate-500">
+                  {tab === "active"
+                    ? "Momentálne nemáte žiadny aktívny dopyt."
+                    : tab === "received"
+                      ? "Momentálne tu nemáte žiadne hotové vozidlo na prevzatie."
+                      : "Zatiaľ tu nemáte žiadnu históriu dopytov."}
+                </Text>
+              </View>
+            ) : tab === "history" ? (
+              groupedHistoryRequests.map((group) => (
+                <View key={group.dateKey} className="mb-2">
+                  <Text className="mb-3 text-base font-bold text-casker-navy">{group.label}</Text>
+                  <View className="gap-3">
+                    {group.requests.map((request) => (
+                      <DriverRequestThread
+                        key={request.id}
+                        request={request}
+                        mode="history"
+                        hasUnseenHistoryNotification={hasUnseenHistoryNotification?.(request)}
+                        onAcknowledgeHistoryNotification={onAcknowledgeHistoryNotification}
+                        onUpdated={() => {
+                          void onReload({ silent: true });
+                        }}
+                      />
+                    ))}
+                  </View>
                 </View>
-              ) : (
-                <GestureDetector gesture={scrollGesture}>
-                  <Animated.ScrollView
-                    className="flex-1 px-5 pt-4"
-                    contentContainerStyle={styles.listContent}
-                    showsVerticalScrollIndicator={false}
-                    onScroll={scrollHandler}
-                    scrollEventThrottle={16}
-                    bounces
-                  >
-                    {visibleRequests.length === 0 ? (
-                      <View className="items-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10">
-                        <Text className="text-center text-base text-slate-500">
-                          {tab === "active"
-                            ? "Momentálne nemáte žiadny aktívny dopyt."
-                            : "Zatiaľ tu nemáte žiadnu históriu dopytov."}
-                        </Text>
-                      </View>
-                    ) : (
-                      visibleRequests.map((request) => (
-                        <DriverRequestThread
-                          key={request.id}
-                          request={request}
-                          canCancelRequest={
-                            tab === "active" &&
-                            isActiveDriverRequest(request.status) &&
-                            cancellingId !== request.id
-                          }
-                          onCancelRequest={() => handleCancelPress(request)}
-                          onUpdated={() => {
-                            void onReload({ silent: true });
-                          }}
-                          busyResponseId={busyResponseId}
-                          onBusyChange={setBusyResponseId}
-                          onServiceFocus={onServiceFocus}
-                          focusedServiceResponseId={focusedServiceResponseId}
-                          onOpenChat={(serviceName) => handleOpenChat(request, serviceName)}
-                        />
-                      ))
-                    )}
-                  </Animated.ScrollView>
-                </GestureDetector>
-              )}
+              ))
+            ) : (
+              visibleRequests.map((request) => (
+                <DriverRequestThread
+                  key={request.id}
+                  request={request}
+                  mode={tab}
+                  canCancelRequest={
+                    tab === "active" &&
+                    isActiveDriverRequest(request.status) &&
+                    cancellingId !== request.id
+                  }
+                  isConfirmingPickup={confirmingId === request.id}
+                  onConfirmPickup={() => handleConfirmPickupPress(request)}
+                  onCancelRequest={() => handleCancelPress(request)}
+                  onUpdated={() => {
+                    void onReload({ silent: true });
+                  }}
+                  busyResponseId={busyResponseId}
+                  onBusyChange={setBusyResponseId}
+                  onServiceFocus={onServiceFocus}
+                  focusedServiceResponseId={focusedServiceResponseId}
+                  onOpenChat={(serviceName) => handleOpenChat(request, serviceName)}
+                />
+              ))
+            )}
+          </Animated.ScrollView>
+        )}
       </Animated.View>
     </View>
   );
@@ -341,16 +455,20 @@ function TabButton({
   active,
   badgeCount = 0,
   onPress,
+  align = "left",
 }: {
   label: string;
   active: boolean;
   badgeCount?: number;
   onPress: () => void;
+  align?: "left" | "right";
 }) {
   return (
     <Pressable
       onPress={onPress}
-      className={`mr-6 border-b-2 py-3 ${active ? "border-casker-navy" : "border-transparent"}`}
+      className={`border-b-2 py-3 ${align === "right" ? "ml-4" : "mr-6"} ${
+        active ? "border-casker-navy" : "border-transparent"
+      }`}
     >
       <View className="flex-row items-center gap-1.5">
         <Text
@@ -375,6 +493,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    overflow: "hidden",
   },
   handleTouchArea: {
     alignSelf: "stretch",
@@ -384,8 +503,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 48,
   },
+  listArea: {
+    flex: 1,
+    minHeight: 0,
+  },
   listContent: {
     gap: 12,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
 });

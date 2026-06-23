@@ -22,11 +22,14 @@ export type SubmitDriverInquiryInput = {
   locationCity: string;
   radiusKm: number;
   description: string;
+  photos?: string[];
   latitude?: number;
   longitude?: number;
   userName?: string;
   phone?: string;
   vehicleSpecs?: SubmitDriverVehicleSpecs;
+  targetCompanyId?: string;
+  targetCompanyName?: string;
 };
 
 function getApiBaseUrl() {

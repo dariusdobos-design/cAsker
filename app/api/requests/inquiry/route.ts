@@ -59,6 +59,11 @@ export async function POST(request: Request) {
         body.vehicleSpecs && typeof body.vehicleSpecs === "object"
           ? body.vehicleSpecs
           : undefined,
+      targetCompanyId:
+        typeof body.targetCompanyId === "string" ? body.targetCompanyId : undefined,
+      targetCompanyName:
+        typeof body.targetCompanyName === "string" ? body.targetCompanyName : undefined,
+      photos: Array.isArray(body.photos) ? body.photos : undefined,
     });
 
     return NextResponse.json({ request: created }, { status: 201 });

@@ -19,13 +19,13 @@ import {
 } from "@/lib/inquiry-description";
 import {
   fetchCompletedRequests,
+  fetchCancelledRequests,
   getRequestCategoryCardClass,
   groupCancelledRequestsByDate,
   groupCompletedRequestsByDate,
   matchesRequestSearchQuery,
   restoreRequest,
   subscribeToRequestChanges,
-  syncCancelledRequests,
   type CancelledRequest,
   type CompletedRequest,
 } from "@/lib/requests";
@@ -37,8 +37,6 @@ const EMPTY_HISTORY_SEARCH: Record<HistoryTab, string> = {
   completed: "",
   cancelled: "",
 };
-
-const CANCELLED_SYNC_INTERVAL_MS = 15_000;
 
 function formatDistanceKm(value: number) {
   return value.toLocaleString("sk-SK", {
@@ -69,7 +67,7 @@ export default function HistoryPage() {
     try {
       const [completed, cancelled, acceptedAppointments] = await Promise.all([
         fetchCompletedRequests(),
-        syncCancelledRequests(),
+        fetchCancelledRequests(),
         fetchAcceptedAppointments(),
       ]);
 
@@ -85,13 +83,13 @@ export default function HistoryPage() {
 
   const refreshCancelledRequests = useCallback(async () => {
     try {
-      const synced = await syncCancelledRequests();
-      setCancelledRequests(synced);
+      const cancelled = await fetchCancelledRequests();
+      setCancelledRequests(cancelled);
       setSelectedRequestId((current) => {
-        if (current && synced.some((request) => request.id === current)) {
+        if (current && cancelled.some((request) => request.id === current)) {
           return current;
         }
-        return synced[0]?.id ?? null;
+        return cancelled[0]?.id ?? null;
       });
     } catch (error) {
       console.warn(
@@ -122,14 +120,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     if (activeTab !== "cancelled") return;
-
     void refreshCancelledRequests();
-
-    const intervalId = window.setInterval(() => {
-      void refreshCancelledRequests();
-    }, CANCELLED_SYNC_INTERVAL_MS);
-
-    return () => window.clearInterval(intervalId);
   }, [activeTab, refreshCancelledRequests]);
 
   const appointmentByRequestId = useMemo(
@@ -314,7 +305,7 @@ export default function HistoryPage() {
                               />
                             </div>
                             <div className="min-w-0 flex-1 overflow-hidden">
-                              <h3 className="text-base font-bold leading-tight text-zinc-900">
+                              <h3 className="text-base font-bold leading-tight text-white">
                                 {request.vehicleName} {request.year}
                               </h3>
                               {cardDescription ? (
@@ -329,8 +320,8 @@ export default function HistoryPage() {
                             <span className="casker-tag">
                               EČ - {request.licensePlate}
                             </span>
-                            <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-zinc-700">
-                              <MapPin className="h-3.5 w-3.5 text-[#0B194F]" />
+                            <div className="flex shrink-0 items-center gap-1 text-xs font-medium text-white">
+                              <MapPin className="h-3.5 w-3.5 text-white" />
                               <span>{formatDistanceKm(request.distanceKm)} km</span>
                             </div>
                           </div>

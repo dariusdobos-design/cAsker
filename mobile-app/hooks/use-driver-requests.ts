@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadCustomerRequestIds, syncCustomerRequestIds } from "@/lib/customer-request-ids";
 import {
   countPendingServiceResponses,
+  countReceivedTabNotifications,
   countUnreadChatMessages,
 } from "@/lib/driver-request-notifications";
 import { fetchMyDriverRequests, type DriverRequestSummary } from "@/lib/driver-requests-api";
@@ -20,12 +21,23 @@ export function useDriverRequests(refreshKey = 0) {
 
     try {
       const ids = await loadCustomerRequestIds();
+      if (ids.length === 0) {
+        setRequests([]);
+        return;
+      }
+
       const loaded = await fetchMyDriverRequests(ids);
       await syncCustomerRequestIds(loaded.map((request) => request.id));
       setRequests(loaded);
-    } catch {
+    } catch (error) {
       if (!options?.silent) {
         setRequests([]);
+      }
+      if (__DEV__) {
+        console.warn(
+          "Dopyty sa nepodarilo načítať:",
+          error instanceof Error ? error.message : error,
+        );
       }
     } finally {
       if (!options?.silent) {
@@ -53,11 +65,17 @@ export function useDriverRequests(refreshKey = 0) {
 
   const unreadChatCount = useMemo(() => countUnreadChatMessages(requests), [requests]);
 
+  const receivedTabPendingCount = useMemo(
+    () => countReceivedTabNotifications(requests),
+    [requests],
+  );
+
   return {
     requests,
     isLoading,
     reload,
     pendingResponseCount,
+    receivedTabPendingCount,
     unreadChatCount,
   };
 }

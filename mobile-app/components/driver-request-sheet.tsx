@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   Dimensions,
+  Image,
   Keyboard,
   Modal,
   Platform,
@@ -34,16 +35,15 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { buttonShadow } from "@/constants/button-shadow";
+import { useDriverProfile } from "@/hooks/use-driver-profile";
+import { useGarageVehicles } from "@/hooks/use-garage-vehicles";
 import { saveCustomerRequestId } from "@/lib/customer-request-ids";
 import { submitDriverInquiry } from "@/lib/driver-inquiry-api";
+import { MAX_INQUIRY_PHOTOS, promptInquiryPhotoSource } from "@/lib/inquiry-photo-picker";
 import { resolveCurrentDriverLocation } from "@/lib/driver-location";
-import { DRIVER_PROFILE } from "@/lib/driver-profile";
-import {
-  DRIVER_VEHICLES,
-  formatVehicleSpecsSummary,
-  type DriverVehicle,
-} from "@/lib/driver-vehicles";
+import { formatVehicleSpecsSummary, type DriverVehicle } from "@/lib/driver-vehicles";
 import type { RequestCategoryId } from "@/lib/request-category";
+import type { MapServiceMarker } from "@/lib/map-services-api";
 import { TowingServiceIcon, WideServiceIcon } from "@/components/service-category-icons";
 
 export type { RequestCategoryId };
@@ -87,12 +87,14 @@ type DriverRequestSheetProps = {
   visible: boolean;
   onClose: () => void;
   onRequestCreated?: (requestId: string) => void;
+  targetService?: MapServiceMarker | null;
 };
 
 export function DriverRequestSheet({
   visible,
   onClose,
   onRequestCreated,
+  targetService = null,
 }: DriverRequestSheetProps) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<SheetStep>("vehicle");
@@ -105,14 +107,18 @@ export function DriverRequestSheet({
   } | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
   const [description, setDescription] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [isLocationLoading, setIsLocationLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const { profile, reload: reloadProfile } = useDriverProfile(visible);
+  const { vehicles: garageVehicles } = useGarageVehicles(visible);
 
   const selectedVehicle = useMemo(
-    () => DRIVER_VEHICLES.find((vehicle) => vehicle.id === selectedVehicleId) ?? null,
-    [selectedVehicleId],
+    () => garageVehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null,
+    [garageVehicles, selectedVehicleId],
   );
 
   const selectedCategoryLabel = useMemo(
@@ -124,10 +130,12 @@ export function DriverRequestSheet({
     setStep("vehicle");
     setSelectedVehicleId(null);
     setSelectedCategory(null);
-    setCity("");
+    setCity(targetService?.city.trim() ?? "");
     setLocationCoords(null);
     setRadiusKm(50);
     setDescription("");
+    setPhotos([]);
+    setPhotoError(null);
     setIsLocationLoading(false);
     setIsSubmitting(false);
     setLocationError(null);
@@ -170,15 +178,19 @@ export function DriverRequestSheet({
     if (!visible) {
       return;
     }
+    void reloadProfile();
     isClosing.value = false;
     keyboardHeight.value = 0;
     scrollY.value = 0;
     translateY.value = SHEET_HIDDEN_Y;
+    if (targetService?.city.trim()) {
+      setCity(targetService.city.trim());
+    }
     translateY.value = withTiming(0, {
       duration: SHEET_OPEN_MS,
       easing: Easing.out(Easing.cubic),
     });
-  }, [visible, isClosing, keyboardHeight, scrollY, translateY]);
+  }, [visible, isClosing, keyboardHeight, reloadProfile, scrollY, targetService, translateY]);
 
   useEffect(() => {
     if (!visible) {
@@ -218,8 +230,14 @@ export function DriverRequestSheet({
     setSelectedCategory(categoryId);
   };
 
+  const isDirectInquiry = Boolean(targetService);
+
   const handleContinueToDetails = () => {
-    if (!selectedVehicleId || !selectedCategory) {
+    if (!selectedVehicleId) {
+      return;
+    }
+
+    if (!isDirectInquiry && !selectedCategory) {
       return;
     }
 
@@ -246,13 +264,28 @@ export function DriverRequestSheet({
   };
 
   const handleSubmit = async () => {
-    if (isSubmitting || !selectedVehicle || !selectedCategory) {
+    if (isSubmitting || !selectedVehicle) {
       return;
     }
 
-    const trimmedCity = city.trim();
+    if (!isDirectInquiry && !selectedCategory) {
+      return;
+    }
+
+    const trimmedCity =
+      city.trim() || targetService?.city.trim() || "";
     if (!trimmedCity) {
-      setSubmitError("Zadajte mesto alebo použite „Moja poloha“.");
+      setSubmitError(
+        isDirectInquiry
+          ? "Chýba adresa servisu."
+          : "Zadajte mesto alebo použite „Moja poloha“.",
+      );
+      return;
+    }
+
+    const trimmedDescription = description.trim();
+    if (isDirectInquiry && !trimmedDescription && photos.length === 0) {
+      setSubmitError("Opíšte, čo potrebujete, alebo priložte fotku.");
       return;
     }
 
@@ -261,17 +294,20 @@ export function DriverRequestSheet({
 
     try {
       const created = await submitDriverInquiry({
-        requestCategory: selectedCategory,
+        requestCategory: isDirectInquiry ? "auto" : selectedCategory!,
         licensePlate: selectedVehicle.plate,
         vehicleName: selectedVehicle.label,
         vehicleTitle: selectedVehicle.label,
         locationCity: trimmedCity,
-        radiusKm,
-        description,
+        radiusKm: isDirectInquiry ? 0 : radiusKm,
+        description: trimmedDescription,
+        photos,
         latitude: locationCoords?.latitude,
         longitude: locationCoords?.longitude,
-        userName: DRIVER_PROFILE.userName,
-        phone: DRIVER_PROFILE.phone,
+        userName: profile.userName,
+        phone: profile.phone,
+        targetCompanyId: targetService?.id,
+        targetCompanyName: targetService?.companyName,
         vehicleSpecs: {
           vin: selectedVehicle.vin,
           engineVolume: selectedVehicle.engineVolume,
@@ -296,6 +332,27 @@ export function DriverRequestSheet({
       setIsSubmitting(false);
     }
   };
+
+  const handleAddPhoto = useCallback(() => {
+    if (photos.length >= MAX_INQUIRY_PHOTOS) {
+      setPhotoError(`Môžete pridať najviac ${MAX_INQUIRY_PHOTOS} fotky.`);
+      return;
+    }
+
+    setPhotoError(null);
+    promptInquiryPhotoSource(
+      (photo) => {
+        setPhotos((current) => [...current, photo].slice(0, MAX_INQUIRY_PHOTOS));
+        setPhotoError(null);
+      },
+      (message) => setPhotoError(message),
+    );
+  }, [photos.length]);
+
+  const handleRemovePhoto = useCallback((index: number) => {
+    setPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index));
+    setPhotoError(null);
+  }, []);
 
   const scrollGesture = useMemo(() => Gesture.Native(), []);
 
@@ -407,8 +464,10 @@ export function DriverRequestSheet({
                 >
                   {step === "vehicle" ? (
                     <VehicleStep
+                      vehicles={garageVehicles}
                       selectedVehicleId={selectedVehicleId}
                       selectedCategory={selectedCategory}
+                      targetServiceName={targetService?.companyName ?? null}
                       onSelectVehicle={setSelectedVehicleId}
                       onSelectCategory={handleCategoryPress}
                       onContinue={handleContinueToDetails}
@@ -417,9 +476,13 @@ export function DriverRequestSheet({
                     <DetailsStep
                       categoryLabel={selectedCategoryLabel}
                       vehicleLabel={selectedVehicle?.label ?? ""}
+                      targetServiceName={targetService?.companyName ?? null}
                       city={city}
                       radiusKm={radiusKm}
                       description={description}
+                      photos={photos}
+                      photoError={photoError}
+                      isDirectInquiry={isDirectInquiry}
                       isLocationLoading={isLocationLoading}
                       isSubmitting={isSubmitting}
                       locationError={locationError}
@@ -431,6 +494,8 @@ export function DriverRequestSheet({
                       }}
                       onRadiusChange={setRadiusKm}
                       onDescriptionChange={setDescription}
+                      onAddPhoto={handleAddPhoto}
+                      onRemovePhoto={handleRemovePhoto}
                       onFieldFocus={scrollToFocusedField}
                       onMyLocation={() => {
                         void handleMyLocation();
@@ -541,14 +606,18 @@ function ServiceCategoryCard({
 }
 
 function VehicleStep({
+  vehicles,
   selectedVehicleId,
   selectedCategory,
+  targetServiceName,
   onSelectVehicle,
   onSelectCategory,
   onContinue,
 }: {
+  vehicles: DriverVehicle[];
   selectedVehicleId: string | null;
   selectedCategory: RequestCategoryId | null;
+  targetServiceName: string | null;
   onSelectVehicle: (id: string) => void;
   onSelectCategory: (id: RequestCategoryId) => void;
   onContinue: () => void;
@@ -556,52 +625,79 @@ function VehicleStep({
   return (
     <View className="pb-6">
       <Text className="text-center text-2xl font-black tracking-wide text-casker-navy">cAsker</Text>
-      <Text className="mt-1 text-center text-base font-semibold text-casker-navy/80">Dopyt</Text>
+      <Text className="mt-1 text-center text-base font-semibold text-casker-navy/80">
+        {targetServiceName ? "Priamy dopyt" : "Dopyt"}
+      </Text>
+      {targetServiceName ? (
+        <Text className="mt-2 text-center text-sm font-medium text-casker-navy/70">
+          Pre {targetServiceName}
+        </Text>
+      ) : null}
 
       <Text className="mt-6 text-sm font-semibold uppercase tracking-wide text-casker-navy/60">
         Vyberte vozidlo
       </Text>
 
       <View className="mt-3 gap-2">
-        {DRIVER_VEHICLES.map((vehicle) => {
-          const isSelected = selectedVehicleId === vehicle.id;
-          return (
-            <VehicleOptionCard
-              key={vehicle.id}
-              vehicle={vehicle}
-              isSelected={isSelected}
-              onPress={() => onSelectVehicle(vehicle.id)}
-            />
-          );
-        })}
+        {vehicles.length === 0 ? (
+          <View className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5">
+            <Text className="text-center text-sm text-slate-600">
+              Nemáte žiadne vozidlo v garáži. Pridajte ho v menu Garáž.
+            </Text>
+          </View>
+        ) : (
+          vehicles.map((vehicle) => {
+            const isSelected = selectedVehicleId === vehicle.id;
+            return (
+              <VehicleOptionCard
+                key={vehicle.id}
+                vehicle={vehicle}
+                isSelected={isSelected}
+                onPress={() => onSelectVehicle(vehicle.id)}
+              />
+            );
+          })
+        )}
       </View>
 
       {selectedVehicleId ? (
         <View className="mt-6">
-          <Text className="mb-3 text-sm font-semibold uppercase tracking-wide text-casker-navy/60">
-            Typ služby
-          </Text>
-          <View className="gap-3">
-            {CATEGORIES.map((category) => (
-              <ServiceCategoryCard
-                key={category.id}
-                categoryId={category.id}
-                label={category.label}
-                isSelected={selectedCategory === category.id}
-                onPress={() => onSelectCategory(category.id)}
-              />
-            ))}
-          </View>
-
-          {selectedCategory ? (
+          {targetServiceName ? (
             <Pressable
               onPress={onContinue}
-              className="mt-5 items-center rounded-2xl bg-casker-navy py-4 active:opacity-90"
+              className="items-center rounded-2xl bg-casker-navy py-4 active:opacity-90"
               style={buttonShadow}
             >
               <Text className="text-base font-bold text-white">Pokračovať</Text>
             </Pressable>
-          ) : null}
+          ) : (
+            <>
+              <Text className="mb-3 text-sm font-semibold uppercase tracking-wide text-casker-navy/60">
+                Typ služby
+              </Text>
+              <View className="gap-3">
+                {CATEGORIES.map((category) => (
+                  <ServiceCategoryCard
+                    key={category.id}
+                    categoryId={category.id}
+                    label={category.label}
+                    isSelected={selectedCategory === category.id}
+                    onPress={() => onSelectCategory(category.id)}
+                  />
+                ))}
+              </View>
+
+              {selectedCategory ? (
+                <Pressable
+                  onPress={onContinue}
+                  className="mt-5 items-center rounded-2xl bg-casker-navy py-4 active:opacity-90"
+                  style={buttonShadow}
+                >
+                  <Text className="text-base font-bold text-white">Pokračovať</Text>
+                </Pressable>
+              ) : null}
+            </>
+          )}
         </View>
       ) : null}
     </View>
@@ -611,9 +707,13 @@ function VehicleStep({
 function DetailsStep({
   categoryLabel,
   vehicleLabel,
+  targetServiceName,
   city,
   radiusKm,
   description,
+  photos,
+  photoError,
+  isDirectInquiry,
   isLocationLoading,
   isSubmitting,
   locationError,
@@ -621,6 +721,8 @@ function DetailsStep({
   onCityChange,
   onRadiusChange,
   onDescriptionChange,
+  onAddPhoto,
+  onRemovePhoto,
   onFieldFocus,
   onMyLocation,
   onBack,
@@ -629,9 +731,13 @@ function DetailsStep({
 }: {
   categoryLabel: string;
   vehicleLabel: string;
+  targetServiceName: string | null;
   city: string;
   radiusKm: number;
   description: string;
+  photos: string[];
+  photoError: string | null;
+  isDirectInquiry: boolean;
   isLocationLoading: boolean;
   isSubmitting: boolean;
   locationError: string | null;
@@ -639,6 +745,8 @@ function DetailsStep({
   onCityChange: (value: string) => void;
   onRadiusChange: (value: number) => void;
   onDescriptionChange: (value: string) => void;
+  onAddPhoto: () => void;
+  onRemovePhoto: (index: number) => void;
   onFieldFocus: () => void;
   onMyLocation: () => void;
   onBack: () => void;
@@ -656,74 +764,124 @@ function DetailsStep({
         <Text className="text-sm font-medium text-casker-navy/70">Späť</Text>
       </Pressable>
 
-      <Text className="text-xl font-bold text-casker-navy">Kde hľadám dopyt</Text>
+      <Text className="text-xl font-bold text-casker-navy">
+        {isDirectInquiry ? "Čo potrebujete?" : "Kde hľadám dopyt"}
+      </Text>
       <Text className="mt-1 text-sm text-slate-500">
-        {categoryLabel}
-        {vehicleLabel ? ` · ${vehicleLabel}` : ""}
+        {isDirectInquiry && targetServiceName
+          ? `${targetServiceName}${vehicleLabel ? ` · ${vehicleLabel}` : ""}`
+          : `${categoryLabel}${vehicleLabel ? ` · ${vehicleLabel}` : ""}`}
       </Text>
 
-      <View className="mt-5 flex-row items-center gap-2">
-        <Pressable
-          onPress={onMyLocation}
-          disabled={isLocationLoading || isSubmitting}
-          className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 active:bg-slate-50 disabled:opacity-60"
-          style={buttonShadow}
-        >
-          <FontAwesome name="location-arrow" size={16} color="#0b194f" />
-          <Text className="text-sm font-semibold text-casker-navy">
-            {isLocationLoading ? "Načítavam polohu…" : "Moja poloha"}
-          </Text>
-        </Pressable>
-      </View>
+      {!isDirectInquiry ? (
+        <>
+          <View className="mt-5 flex-row items-center gap-2">
+            <Pressable
+              onPress={onMyLocation}
+              disabled={isLocationLoading || isSubmitting}
+              className="flex-row items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 active:bg-slate-50 disabled:opacity-60"
+              style={buttonShadow}
+            >
+              <FontAwesome name="location-arrow" size={16} color="#0b194f" />
+              <Text className="text-sm font-semibold text-casker-navy">
+                {isLocationLoading ? "Načítavam polohu…" : "Moja poloha"}
+              </Text>
+            </Pressable>
+          </View>
 
-      {locationError ? (
-        <Text className="mt-2 text-sm text-red-600">{locationError}</Text>
+          {locationError ? (
+            <Text className="mt-2 text-sm text-red-600">{locationError}</Text>
+          ) : null}
+
+          <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">
+            Mesto / lokalita
+          </Text>
+          <TextInput
+            value={city}
+            onChangeText={onCityChange}
+            onFocus={onFieldFocus}
+            placeholder="Napr. Košice"
+            placeholderTextColor="#94a3b8"
+            className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-casker-navy"
+          />
+
+          <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">
+            V okolí
+          </Text>
+          <View className="mt-2 flex-row items-center justify-between">
+            <Text className="text-sm text-slate-600">Vzdialenosť</Text>
+            <Text className="text-lg font-bold text-casker-navy">{Math.round(radiusKm)} km</Text>
+          </View>
+          <Slider
+            minimumValue={5}
+            maximumValue={150}
+            step={5}
+            value={radiusKm}
+            onValueChange={onRadiusChange}
+            minimumTrackTintColor="#2563eb"
+            maximumTrackTintColor="#e2e8f0"
+            thumbTintColor="#0b194f"
+            style={{ width: "100%", height: 40 }}
+          />
+        </>
       ) : null}
 
-      <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">
-        Mesto / lokalita
-      </Text>
-      <TextInput
-        value={city}
-        onChangeText={onCityChange}
-        onFocus={onFieldFocus}
-        placeholder="Napr. Košice"
-        placeholderTextColor="#94a3b8"
-        className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-casker-navy"
-      />
-
-      <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">
-        V okolí
-      </Text>
-      <View className="mt-2 flex-row items-center justify-between">
-        <Text className="text-sm text-slate-600">Vzdialenosť</Text>
-        <Text className="text-lg font-bold text-casker-navy">{Math.round(radiusKm)} km</Text>
-      </View>
-      <Slider
-        minimumValue={5}
-        maximumValue={150}
-        step={5}
-        value={radiusKm}
-        onValueChange={onRadiusChange}
-        minimumTrackTintColor="#2563eb"
-        maximumTrackTintColor="#e2e8f0"
-        thumbTintColor="#0b194f"
-        style={{ width: "100%", height: 40 }}
-      />
-
-      <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">
-        Popis
-      </Text>
+      {!isDirectInquiry ? (
+        <Text className="mt-4 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">
+          Popis
+        </Text>
+      ) : (
+        <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-casker-navy/60">
+          Popis
+        </Text>
+      )}
       <TextInput
         value={description}
         onChangeText={onDescriptionChange}
         onFocus={onFieldFocus}
-        placeholder="Opíšte závadu alebo čo potrebujete…"
+        placeholder={
+          isDirectInquiry
+            ? "Napr. potrebujem vymeniť olej a filtre…"
+            : "Opíšte závadu alebo čo potrebujete…"
+        }
         placeholderTextColor="#94a3b8"
         multiline
         textAlignVertical="top"
         className="mt-2 min-h-[120px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-casker-navy"
       />
+
+      {photos.length > 0 ? (
+        <View className="mt-3 flex-row flex-wrap gap-2">
+          {photos.map((photo, index) => (
+            <View key={`${index}-${photo.slice(-16)}`} className="relative">
+              <Image
+                source={{ uri: photo }}
+                className="h-20 w-20 rounded-xl border border-slate-200"
+                resizeMode="cover"
+              />
+              <Pressable
+                onPress={() => onRemovePhoto(index)}
+                accessibilityLabel="Odstrániť fotku"
+                className="absolute -right-1.5 -top-1.5 h-6 w-6 items-center justify-center rounded-full bg-slate-800"
+              >
+                <FontAwesome name="times" size={12} color="#fff" />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <Pressable
+        onPress={onAddPhoto}
+        disabled={isSubmitting || photos.length >= MAX_INQUIRY_PHOTOS}
+        className="mt-3 flex-row items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-3 active:bg-slate-50 disabled:opacity-50"
+        style={buttonShadow}
+      >
+        <FontAwesome name="camera" size={16} color="#0b194f" />
+        <Text className="text-sm font-semibold text-casker-navy">Pridať fotku</Text>
+      </Pressable>
+
+      {photoError ? <Text className="mt-2 text-sm text-red-600">{photoError}</Text> : null}
 
       {submitError ? (
         <Text className="mt-4 text-sm text-red-600" role="alert">
@@ -738,7 +896,7 @@ function DetailsStep({
         style={buttonShadow}
       >
         <Text className="text-base font-bold text-casker-navy">
-          {isSubmitting ? "Odosielam…" : "Odoslať dopyt"}
+          {isSubmitting ? "Odosielam…" : isDirectInquiry ? "Poslať dopyt" : "Odoslať dopyt"}
         </Text>
       </Pressable>
 

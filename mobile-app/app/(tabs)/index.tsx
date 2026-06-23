@@ -12,11 +12,14 @@ import {
 import { DriverRequestSheet } from "@/components/driver-request-sheet";
 import { DriverTopMenu } from "@/components/driver-top-menu";
 import { DriverCalendarSheet } from "@/components/driver-calendar-sheet";
-import { MenuPlaceholderScreen } from "@/components/menu-placeholder-screen";
+import { GarageSheet } from "@/components/garage-sheet";
 import { MyRequestsSheet } from "@/components/my-requests-sheet";
+import { ServiceFullProfileModal } from "@/components/service-full-profile-modal";
 import { buttonShadow } from "@/constants/button-shadow";
 import { useDriverRequests } from "@/hooks/use-driver-requests";
+import { useDriverHistoryNotifications } from "@/hooks/use-driver-history-notifications";
 import type { DriverServiceResponse } from "@/lib/driver-requests-api";
+import type { MapServiceMarker } from "@/lib/map-services-api";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const MY_REQUESTS_MAP_INSET = SCREEN_HEIGHT * 0.52;
@@ -29,6 +32,8 @@ export default function DriverHomeScreen() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [requestsRefreshKey, setRequestsRefreshKey] = useState(0);
   const [focusedService, setFocusedService] = useState<MapServiceFocus | null>(null);
+  const [profileModalService, setProfileModalService] = useState<MapServiceMarker | null>(null);
+  const [inquiryTargetService, setInquiryTargetService] = useState<MapServiceMarker | null>(null);
   const mapRef = useRef<DriverHomeMapRef>(null);
 
   const {
@@ -36,7 +41,17 @@ export default function DriverHomeScreen() {
     isLoading: requestsLoading,
     reload: reloadRequests,
     pendingResponseCount,
+    receivedTabPendingCount,
   } = useDriverRequests(requestsRefreshKey);
+
+  const {
+    historyTabPendingCount,
+    hasUnseenHistoryNotification,
+    acknowledgeHistoryNotification,
+  } = useDriverHistoryNotifications(requests);
+
+  const myRequestsNotificationCount =
+    pendingResponseCount + receivedTabPendingCount + historyTabPendingCount;
 
   const handleServiceFocus = useCallback((response: DriverServiceResponse) => {
     if (response.serviceLatitude === null || response.serviceLongitude === null) {
@@ -65,17 +80,24 @@ export default function DriverHomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <DriverHomeMap
-        ref={mapRef}
-        focusedService={focusedService}
-        mapBottomInset={mapBottomInset}
-      />
+      <View style={styles.mapLayer}>
+        <DriverHomeMap
+          ref={mapRef}
+          focusedService={focusedService}
+          mapBottomInset={mapBottomInset}
+          onOpenServiceProfile={setProfileModalService}
+          onSendServiceInquiry={(service) => {
+            setInquiryTargetService(service);
+            setSheetOpen(true);
+          }}
+        />
+      </View>
 
       <View pointerEvents="box-none" style={styles.topChrome}>
         <SafeAreaView edges={["top"]} pointerEvents="box-none" className="px-4 pt-2">
           <View className="flex-row justify-end">
             <DriverTopMenu
-              pendingCount={pendingResponseCount}
+              pendingCount={myRequestsNotificationCount}
               onGarage={() => setGarageOpen(true)}
               onCalendar={() => setCalendarOpen(true)}
               onMyRequests={() => setMyRequestsOpen(true)}
@@ -92,7 +114,10 @@ export default function DriverHomeScreen() {
             <Pressable
               accessibilityLabel="Nový dopyt"
               accessibilityRole="button"
-              onPress={() => setSheetOpen(true)}
+              onPress={() => {
+                setInquiryTargetService(null);
+                setSheetOpen(true);
+              }}
               className="h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-white active:bg-slate-50"
               style={buttonShadow}
             >
@@ -120,22 +145,27 @@ export default function DriverHomeScreen() {
         isLoading={requestsLoading}
         onReload={reloadRequests}
         activeTabPendingCount={pendingResponseCount}
+        receivedTabPendingCount={receivedTabPendingCount}
+        historyTabPendingCount={historyTabPendingCount}
+        hasUnseenHistoryNotification={hasUnseenHistoryNotification}
+        onAcknowledgeHistoryNotification={(requestId) => {
+          void acknowledgeHistoryNotification(requestId);
+        }}
         onServiceFocus={handleServiceFocus}
         focusedServiceResponseId={focusedService?.responseId ?? null}
       />
 
       <DriverRequestSheet
         visible={sheetOpen}
-        onClose={() => setSheetOpen(false)}
+        targetService={inquiryTargetService}
+        onClose={() => {
+          setSheetOpen(false);
+          setInquiryTargetService(null);
+        }}
         onRequestCreated={() => setRequestsRefreshKey((value) => value + 1)}
       />
 
-      <MenuPlaceholderScreen
-        visible={garageOpen}
-        title="Garáž"
-        message="Správa vozidiel v garáži pripravujeme v ďalšom kroku."
-        onClose={() => setGarageOpen(false)}
-      />
+      <GarageSheet visible={garageOpen} onClose={() => setGarageOpen(false)} />
 
       <DriverCalendarSheet
         visible={calendarOpen}
@@ -147,7 +177,20 @@ export default function DriverHomeScreen() {
         }}
       />
 
-      <AccountPlaceholderScreen visible={accountOpen} onClose={() => setAccountOpen(false)} />
+      <AccountPlaceholderScreen
+        visible={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        onSessionChanged={() => setRequestsRefreshKey((value) => value + 1)}
+      />
+
+      {profileModalService ? (
+        <ServiceFullProfileModal
+          visible
+          service={profileModalService}
+          onClose={() => setProfileModalService(null)}
+        />
+      ) : null}
+
     </View>
   );
 }
@@ -157,16 +200,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0b194f",
   },
+  mapLayer: {
+    flex: 1,
+    zIndex: 0,
+  },
   topChrome: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
+    zIndex: 10,
   },
   bottomOverlay: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 10,
   },
 });

@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { CreditCard, History, LayoutDashboard, LogOut, Settings, User } from "lucide-react";
+import {
+  CreditCard,
+  History,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  Store,
+  User,
+} from "lucide-react";
 import { signOutCurrentUser } from "@/lib/companies";
 
 type ProfileMenuProps = {
@@ -24,6 +32,7 @@ export function ProfileMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const isHistoryPage = pathname === "/history";
+  const isProfilePage = pathname === "/profile";
   const isAuthPage = pathname === "/auth";
   const showDashboardNavigation = showNavigation && !isAuthPage;
 
@@ -103,27 +112,41 @@ export function ProfileMenu({
       {isOpen ? (
         <div className="casker-profile-menu-dropdown" role="menu">
           {showDashboardNavigation ? (
-            isHistoryPage ? (
-              <Link
-                href="/"
-                className="casker-profile-menu-item"
-                role="menuitem"
-                onClick={closeMenu}
-              >
-                <LayoutDashboard className="h-4 w-4" strokeWidth={2.25} />
-                Dashboard
-              </Link>
-            ) : (
-              <Link
-                href="/history"
-                className="casker-profile-menu-item"
-                role="menuitem"
-                onClick={closeMenu}
-              >
-                <History className="h-4 w-4" strokeWidth={2.25} />
-                História dopytov
-              </Link>
-            )
+            <>
+              {isHistoryPage || isProfilePage ? (
+                <Link
+                  href="/"
+                  className="casker-profile-menu-item"
+                  role="menuitem"
+                  onClick={closeMenu}
+                >
+                  <LayoutDashboard className="h-4 w-4" strokeWidth={2.25} />
+                  Dashboard
+                </Link>
+              ) : null}
+              {!isProfilePage ? (
+                <Link
+                  href="/profile"
+                  className="casker-profile-menu-item"
+                  role="menuitem"
+                  onClick={closeMenu}
+                >
+                  <Store className="h-4 w-4" strokeWidth={2.25} />
+                  Profil
+                </Link>
+              ) : null}
+              {!isHistoryPage ? (
+                <Link
+                  href="/history"
+                  className="casker-profile-menu-item"
+                  role="menuitem"
+                  onClick={closeMenu}
+                >
+                  <History className="h-4 w-4" strokeWidth={2.25} />
+                  História dopytov
+                </Link>
+              ) : null}
+            </>
           ) : null}
 
           <div

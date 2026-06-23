@@ -22,6 +22,7 @@ import {
 } from "./state-icons";
 import { BookingPopover } from "./components/booking-popover";
 import { ReschedulePopover } from "./components/reschedule-popover";
+import { InquiryPhotoGallery } from "@/components/inquiry-photo-gallery";
 import { MapCalendar } from "./components/map-calendar";
 import { ProfileMenu } from "./components/profile-menu";
 import {
@@ -42,6 +43,7 @@ import {
   fetchAppointmentProposals,
   fetchPendingAppointments,
   findRequestForAppointment,
+  pickPreferredAppointment,
   mergeDemoAcceptedAppointments,
   formatAppointmentSchedule,
   formatProposalSchedule,
@@ -52,13 +54,13 @@ import {
   type Appointment,
   type AppointmentProposal,
 } from "@/lib/appointments";
+import { fetchDeclinedRequestIdsForCompany } from "@/lib/request-service-declines";
 import {
-  cancelRequest,
-  completeRequest,
-  fetchRequestById,
   acknowledgeCustomerAcceptance,
   acknowledgeInquiry,
   compareRequestsByCreatedAt,
+  completeRequest,
+  fetchRequestById,
   fetchRequests,
   formatHistoryDateLabel,
   formatRequestCreatedTime,
@@ -73,6 +75,7 @@ import {
   toHistoryDateKey,
   type Request,
 } from "@/lib/requests";
+import { subscribeToRequestMessageChanges } from "@/lib/request-messages";
 import { SERVICE_DISPLAY_NAME } from "@/lib/service-config";
 import { shouldShowRequestOnMap } from "@/lib/request-map";
 import {
@@ -80,6 +83,7 @@ import {
   DEFAULT_VEHICLE_CATEGORY_FILTER,
   getRequestDistanceFromService,
   hasActiveInquiryFilter,
+  isRequestVisibleToCompany,
   loadServiceLocation,
   matchesVehicleCategoryFilter,
   prepareLocationFilter,
@@ -288,6 +292,7 @@ type ChatPanelProps = {
   right: number;
   panelRef: React.RefObject<HTMLDivElement | null>;
   onClose: () => void;
+  onMessagesRead?: () => void;
 };
 
 function ChatPanel({
@@ -296,6 +301,7 @@ function ChatPanel({
   right,
   panelRef,
   onClose,
+  onMessagesRead,
 }: ChatPanelProps) {
   const [height, setHeight] = useState(CHAT_DEFAULT_HEIGHT);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -366,26 +372,33 @@ function ChatPanel({
 
   const markMessagesRead = useCallback(async () => {
     try {
-      await fetch("/api/requests/messages/read", {
+      const response = await fetch("/api/requests/messages/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId: request.id, reader: "service" }),
       });
+
+      if (response.ok) {
+        onMessagesRead?.();
+      }
     } catch (error) {
       console.error("Stav prečítania chatu sa nepodarilo uložiť:", error);
     }
-  }, [request.id]);
+  }, [onMessagesRead, request.id]);
 
   useEffect(() => {
     void loadMessages();
-    void markMessagesRead();
 
     const intervalId = window.setInterval(() => {
       void loadMessages();
     }, 4000);
 
     return () => window.clearInterval(intervalId);
-  }, [loadMessages, markMessagesRead]);
+  }, [loadMessages]);
+
+  useEffect(() => {
+    void markMessagesRead();
+  }, [markMessagesRead]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -577,15 +590,11 @@ function CancelConfirmDialog({
         className="casker-dialog"
         role="alertdialog"
         aria-labelledby="cancel-dialog-title"
-        aria-describedby="cancel-dialog-desc"
         onClick={(event) => event.stopPropagation()}
       >
         <h3 id="cancel-dialog-title" className="casker-dialog-title">
-          Naozaj chcete odstrániť dopyt?
+          Odstrániť dopyt z vášho zoznamu?
         </h3>
-        <p id="cancel-dialog-desc" className="casker-dialog-text">
-          (Zrušené dopyty nájdete v histórií dopytov)
-        </p>
         {error ? <p className="casker-dialog-error">{error}</p> : null}
         <div className="casker-dialog-actions">
           <button
@@ -602,7 +611,7 @@ function CancelConfirmDialog({
             onClick={onConfirm}
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Ruším…" : "Áno"}
+            {isSubmitting ? "Odstraňujem…" : "Odstrániť"}
           </button>
         </div>
       </div>
@@ -763,41 +772,37 @@ function buildSidebarEntries(
     }));
   }
 
-  const requestIds = new Set(filteredRequests.map((request) => request.id));
-  const entries: SidebarEntry[] = [];
+  const appointmentsByRequestId = new Map<string, Appointment>();
 
   for (const appointment of calendarAppointments) {
     const request = findRequestForAppointment(appointment, requests);
-    if (!request || !requestIds.has(request.id)) {
+    if (!request) {
       continue;
     }
 
-    entries.push({
-      key: appointment.id,
-      request,
-      appointment,
-    });
+    const existing = appointmentsByRequestId.get(request.id);
+    appointmentsByRequestId.set(
+      request.id,
+      existing ? pickPreferredAppointment(existing, appointment) : appointment,
+    );
   }
 
-  const coveredRequestIds = new Set(entries.map((entry) => entry.request.id));
-  for (const request of filteredRequests) {
-    if (coveredRequestIds.has(request.id)) {
-      continue;
-    }
+  return filteredRequests
+    .map((request) => {
+      const fromCalendar = appointmentsByRequestId.get(request.id) ?? null;
+      const pending = pendingByRequestId.get(request.id) ?? null;
+      const accepted = acceptedByRequestId.get(request.id) ?? null;
+      const appointment =
+        fromCalendar ??
+        (activeState === "waiting" ? pending : (accepted ?? pending));
 
-    const pending = pendingByRequestId.get(request.id) ?? null;
-    const accepted = acceptedByRequestId.get(request.id) ?? null;
-    const appointment =
-      activeState === "waiting" ? pending : (accepted ?? pending);
-
-    entries.push({
-      key: request.id,
-      request,
-      appointment,
-    });
-  }
-
-  return [...entries].sort(compareSidebarEntries);
+      return {
+        key: request.id,
+        request,
+        appointment,
+      };
+    })
+    .sort(compareSidebarEntries);
 }
 
 function groupSidebarEntriesByCreatedDate(entries: SidebarEntry[]) {
@@ -828,6 +833,7 @@ function SidebarRequestCard({
   hasRescheduleNotification,
   hasAcceptedNotification,
   hasInquiryNotification,
+  unreadChatCount,
   distanceKm,
   onSelect,
   onCancel,
@@ -840,6 +846,7 @@ function SidebarRequestCard({
   hasRescheduleNotification: boolean;
   hasAcceptedNotification: boolean;
   hasInquiryNotification: boolean;
+  unreadChatCount: number;
   distanceKm: number;
   onSelect: (requestId: string, appointmentId?: string) => void;
   onCancel: (request: Request) => void;
@@ -943,18 +950,32 @@ function SidebarRequestCard({
             <span>{formatAppointmentSchedule(cardAppointment)}</span>
           </p>
         ) : null}
+
+        {isScheduledCard && unreadChatCount > 0 ? (
+          <span
+            className="casker-request-chat-notification"
+            aria-label={`${unreadChatCount} nových správ v chate`}
+          >
+            <MessageCircle className="casker-request-chat-notification-icon" strokeWidth={2.35} />
+            <span className="casker-request-chat-notification-badge" aria-hidden="true">
+              {unreadChatCount > 9 ? "9+" : unreadChatCount}
+            </span>
+          </span>
+        ) : null}
       </button>
-      <button
-        type="button"
-        className="casker-request-cancel-btn"
-        aria-label="Zrušiť dopyt"
-        onClick={(event) => {
-          event.stopPropagation();
-          onCancel(request);
-        }}
-      >
-        <X className="h-3 w-3" strokeWidth={2.5} />
-      </button>
+      {activeState === "inquiry" || activeState === "waiting" ? (
+        <button
+          type="button"
+          className="casker-request-cancel-btn"
+          aria-label="Odstrániť z môjho zoznamu"
+          onClick={(event) => {
+            event.stopPropagation();
+            onCancel(request);
+          }}
+        >
+          <X className="h-3 w-3" strokeWidth={2.5} />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -1042,12 +1063,15 @@ function InquiryDescriptionPanel({
   return (
     <div className="casker-inquiry-detail">
       <div className="casker-inquiry-chat">
-        <div className="casker-inquiry-message is-customer">
-          <p className="casker-inquiry-message-author">{request.userName}</p>
-          <p className="casker-inquiry-message-text">
-            {getInquiryUserDescription(request.inquiryDescription) ||
-              request.inquiryDescription}
-          </p>
+        <div className="casker-inquiry-customer-entry">
+          <div className="casker-inquiry-message is-customer">
+            <p className="casker-inquiry-message-author">{request.userName}</p>
+            <p className="casker-inquiry-message-text">
+              {getInquiryUserDescription(request.inquiryDescription) ||
+                request.inquiryDescription}
+            </p>
+          </div>
+          <InquiryPhotoGallery photos={request.inquiryPhotos ?? []} />
         </div>
 
         {proposalTimeline.map((proposal) => (
@@ -1171,6 +1195,39 @@ function InquiryDescriptionPanel({
   );
 }
 
+function ChatActionButton({
+  chatBtnRef,
+  chatOpen,
+  unreadChatCount,
+  onClick,
+}: {
+  chatBtnRef: React.RefObject<HTMLButtonElement | null>;
+  chatOpen: boolean;
+  unreadChatCount: number;
+  onClick: () => void;
+}) {
+  const showBadge = unreadChatCount > 0 && !chatOpen;
+
+  return (
+    <button
+      ref={chatBtnRef}
+      type="button"
+      className="casker-chat-btn"
+      onClick={onClick}
+      aria-label={showBadge ? `Chat, ${unreadChatCount} nových správ` : "Chat"}
+      aria-expanded={chatOpen}
+    >
+      <MessageCircle className="h-3.5 w-3.5" strokeWidth={2.35} />
+      Chat
+      {showBadge ? (
+        <span className="casker-chat-btn-notification-badge" aria-hidden="true">
+          {unreadChatCount > 9 ? "9+" : unreadChatCount}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 function RequestDetailPanel({
   request,
   serviceLocation,
@@ -1181,6 +1238,8 @@ function RequestDetailPanel({
   onAppointmentCreated,
   onRequestCompleted,
   onCustomerRescheduleRequest,
+  onChatMessagesRead,
+  unreadChatCount,
 }: {
   request: Request;
   serviceLocation: ServiceLocation;
@@ -1191,6 +1250,8 @@ function RequestDetailPanel({
   onAppointmentCreated: (requestId: string) => void;
   onRequestCompleted: (requestId: string) => void;
   onCustomerRescheduleRequest: (requestId: string) => Promise<void>;
+  onChatMessagesRead?: () => void;
+  unreadChatCount: number;
 }) {
   const appointmentServiceInfo = {
     companyName: serviceDisplayName,
@@ -1306,6 +1367,8 @@ function RequestDetailPanel({
             vehicleCategory={request.vehicleCategory}
             year={request.year}
             engine={request.engine}
+            engineVolume={request.engineVolume}
+            vehicleName={request.vehicleName}
             power={request.power}
             fuelType={request.fuelType}
             vin={request.vin}
@@ -1358,17 +1421,12 @@ function RequestDetailPanel({
             {request.status !== "inquiry" ? (
               <div className={`casker-detail-actions${isDone ? " is-done" : ""}`}>
                 {isWaiting ? (
-                  <button
-                    ref={chatBtnRef}
-                    type="button"
-                    className="casker-chat-btn"
+                  <ChatActionButton
+                    chatBtnRef={chatBtnRef}
+                    chatOpen={chatOpen}
+                    unreadChatCount={unreadChatCount}
                     onClick={toggleChat}
-                    aria-label="Chat"
-                    aria-expanded={chatOpen}
-                  >
-                    <MessageCircle className="h-3.5 w-3.5" strokeWidth={2.35} />
-                    Chat
-                  </button>
+                  />
                 ) : isDone ? (
                   <>
                     <button
@@ -1384,17 +1442,12 @@ function RequestDetailPanel({
                       Hotové
                       <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2.35} />
                     </button>
-                    <button
-                      ref={chatBtnRef}
-                      type="button"
-                      className="casker-chat-btn"
+                    <ChatActionButton
+                      chatBtnRef={chatBtnRef}
+                      chatOpen={chatOpen}
+                      unreadChatCount={unreadChatCount}
                       onClick={toggleChat}
-                      aria-label="Chat"
-                      aria-expanded={chatOpen}
-                    >
-                      <MessageCircle className="h-3.5 w-3.5" strokeWidth={2.35} />
-                      Chat
-                    </button>
+                    />
                     <button
                       ref={rescheduleBtnRef}
                       type="button"
@@ -1411,17 +1464,12 @@ function RequestDetailPanel({
                     </button>
                   </>
                 ) : (
-                  <button
-                    ref={chatBtnRef}
-                    type="button"
-                    className="casker-chat-btn"
+                  <ChatActionButton
+                    chatBtnRef={chatBtnRef}
+                    chatOpen={chatOpen}
+                    unreadChatCount={unreadChatCount}
                     onClick={toggleChat}
-                    aria-label="Chat"
-                    aria-expanded={chatOpen}
-                  >
-                    <MessageCircle className="h-3.5 w-3.5" strokeWidth={2.35} />
-                    Chat
-                  </button>
+                  />
                 )}
               </div>
             ) : null}
@@ -1459,6 +1507,7 @@ function RequestDetailPanel({
                 right={chatPos.right}
                 panelRef={chatPanelRef}
                 onClose={closeChat}
+                onMessagesRead={onChatMessagesRead}
               />,
               document.body,
             )}
@@ -1638,6 +1687,9 @@ function FilterPanel({
 export default function Home() {
   const router = useRouter();
   const [requests, setRequests] = useState<Request[]>([]);
+  const [unreadChatByRequestId, setUnreadChatByRequestId] = useState<
+    Record<string, number>
+  >({});
   const [activeState, setActiveState] = useState<SidebarState>("inquiry");
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
     null,
@@ -1682,6 +1734,9 @@ export default function Home() {
   );
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [declinedRequestIds, setDeclinedRequestIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [accountForm, setAccountForm] = useState<CompanyAccountForm | null>(null);
   const [manageAccountOpen, setManageAccountOpen] = useState(false);
@@ -1749,17 +1804,24 @@ export default function Home() {
       requests.filter(
         (request) =>
           request.status === "waiting" &&
-          hasCustomerRescheduleRequest(
+          (hasCustomerRescheduleRequest(
             request,
             pendingByRequestId.get(request.id),
-          ),
+          ) ||
+            (unreadChatByRequestId[request.id] ?? 0) > 0),
       ).length,
-    [requests, pendingByRequestId],
+    [requests, pendingByRequestId, unreadChatByRequestId],
   );
 
   const doneAttentionCount = useMemo(
-    () => requests.filter((request) => hasUnseenCustomerAcceptance(request)).length,
-    [requests],
+    () =>
+      requests.filter(
+        (request) =>
+          request.status === "done" &&
+          (hasUnseenCustomerAcceptance(request) ||
+            (unreadChatByRequestId[request.id] ?? 0) > 0),
+      ).length,
+    [requests, unreadChatByRequestId],
   );
 
   const proposalsByRequestId = useMemo(
@@ -1908,12 +1970,22 @@ export default function Home() {
       sortRequestsByCreatedAt(
         requests.filter((request) => {
           if (request.status !== activeState) return false;
+          if (
+            (activeState === "inquiry" || activeState === "waiting") &&
+            declinedRequestIds.has(request.id)
+          ) {
+            return false;
+          }
           if (!matchesVehicleCategoryFilter(request, appliedVehicleFilter)) {
             return false;
           }
 
-          const distanceKm = getRequestDistanceFromService(request, appliedServiceLocation);
-          return distanceKm <= appliedRadius;
+          return isRequestVisibleToCompany(
+            request,
+            companyProfile?.id,
+            appliedServiceLocation,
+            appliedRadius,
+          );
         }),
       ),
     [
@@ -1923,6 +1995,8 @@ export default function Home() {
       appliedServiceLocation,
       appliedVehicleFilter,
       locationFilterRevision,
+      companyProfile?.id,
+      declinedRequestIds,
     ],
   );
 
@@ -2007,7 +2081,18 @@ export default function Home() {
       return null;
     }
     if (
-      getRequestDistanceFromService(request, appliedServiceLocation) > appliedRadius
+      !isRequestVisibleToCompany(
+        request,
+        companyProfile?.id,
+        appliedServiceLocation,
+        appliedRadius,
+      )
+    ) {
+      return null;
+    }
+    if (
+      (activeState === "inquiry" || activeState === "waiting") &&
+      declinedRequestIds.has(request.id)
     ) {
       return null;
     }
@@ -2031,6 +2116,8 @@ export default function Home() {
     appliedVehicleFilter,
     activeSearchQuery,
     getSearchAppointment,
+    companyProfile?.id,
+    declinedRequestIds,
   ]);
 
   const handleSelectRequest = (
@@ -2142,6 +2229,45 @@ export default function Home() {
   };
 
   const refreshTimeoutRef = useRef<number | null>(null);
+  const requestsRef = useRef(requests);
+  requestsRef.current = requests;
+
+  const refreshUnreadChatCounts = useCallback(async (requestList: Request[]) => {
+    const chatRequestIds = requestList
+      .filter(
+        (request) => request.status === "waiting" || request.status === "done",
+      )
+      .map((request) => request.id);
+
+    if (chatRequestIds.length === 0) {
+      setUnreadChatByRequestId({});
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/requests/messages/unread-counts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestIds: chatRequestIds }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { unreadByRequestId?: Record<string, number>; error?: string }
+        | null;
+
+      if (!response.ok || !payload?.unreadByRequestId) {
+        throw new Error(payload?.error ?? "Neprečítané správy chatu sa nepodarilo načítať.");
+      }
+
+      setUnreadChatByRequestId(payload.unreadByRequestId);
+    } catch (chatError) {
+      console.warn(
+        "Neprečítané správy chatu sa nepodarilo načítať:",
+        chatError instanceof Error
+          ? chatError.message
+          : getSupabaseErrorMessage(chatError),
+      );
+    }
+  }, []);
 
   const refreshDashboardData = useCallback(async () => {
     try {
@@ -2172,13 +2298,26 @@ export default function Home() {
     try {
       const nextRequests = await fetchRequests({ allowFallback: true });
       setRequests(nextRequests);
+      await refreshUnreadChatCounts(nextRequests);
     } catch (requestError) {
       console.warn(
         "Dopyty sa nepodarilo načítať z DB:",
         getSupabaseErrorMessage(requestError),
       );
     }
-  }, []);
+
+    if (companyProfile?.id) {
+      try {
+        const declinedIds = await fetchDeclinedRequestIdsForCompany(companyProfile.id);
+        setDeclinedRequestIds(new Set(declinedIds));
+      } catch (declineError) {
+        console.warn(
+          "Odmietnuté dopyty sa nepodarilo načítať:",
+          getSupabaseErrorMessage(declineError),
+        );
+      }
+    }
+  }, [refreshUnreadChatCounts, companyProfile?.id]);
 
   const scheduleDashboardRefresh = useCallback(() => {
     if (refreshTimeoutRef.current !== null) {
@@ -2196,10 +2335,33 @@ export default function Home() {
   }, [refreshDashboardData]);
 
   useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void refreshUnreadChatCounts(requests);
+    }, 4000);
+
+    return () => window.clearInterval(intervalId);
+  }, [refreshUnreadChatCounts, requests]);
+
+  const handleChatMessagesRead = useCallback(
+    (requestId: string) => {
+      setUnreadChatByRequestId((current) => ({
+        ...current,
+        [requestId]: 0,
+      }));
+      scheduleDashboardRefresh();
+    },
+    [scheduleDashboardRefresh],
+  );
+
+  useEffect(() => {
     const unsubscribeAppointments = subscribeToAppointmentChanges(() => {
       scheduleDashboardRefresh();
     });
     const unsubscribeRequests = subscribeToRequestChanges(() => {
+      scheduleDashboardRefresh();
+    });
+    const unsubscribeMessages = subscribeToRequestMessageChanges(() => {
+      void refreshUnreadChatCounts(requestsRef.current);
       scheduleDashboardRefresh();
     });
 
@@ -2209,8 +2371,9 @@ export default function Home() {
       }
       unsubscribeAppointments();
       unsubscribeRequests();
+      unsubscribeMessages();
     };
-  }, [scheduleDashboardRefresh]);
+  }, [refreshUnreadChatCounts, scheduleDashboardRefresh]);
 
   const handleAppointmentSelect = async (appointment: Appointment) => {
     let matchedRequest = findRequestForAppointment(appointment, requests);
@@ -2277,26 +2440,51 @@ export default function Home() {
   };
 
   const handleConfirmCancel = async () => {
-    if (!cancelDialogRequest) return;
+    if (!cancelDialogRequest || !companyProfile?.id) return;
 
     setCancelError(null);
     setIsCancelling(true);
     try {
-      await cancelRequest(cancelDialogRequest);
-      setRequests((current) =>
-        current.filter((request) => request.id !== cancelDialogRequest.id),
-      );
+      const response = await fetch("/api/requests/decline-for-service", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: cancelDialogRequest.id,
+          companyId: companyProfile.id,
+          companyName: companyDisplayName,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Dopyt sa nepodarilo odstrániť z vášho zoznamu.");
+      }
+
+      setDeclinedRequestIds((current) => {
+        const next = new Set(current);
+        next.add(cancelDialogRequest.id);
+        return next;
+      });
+
       if (selectedRequestId === cancelDialogRequest.id) {
         setSelectedRequestId(null);
+        setMapFocusedRequestId(null);
+        setViewportFocusRequestId(null);
       }
       setCancelDialogRequestId(null);
       void refreshDashboardData();
     } catch (error) {
-      console.error("Nepodarilo sa zrušiť dopyt:", getSupabaseErrorMessage(error));
+      console.error(
+        "Nepodarilo sa odstrániť dopyt zo zoznamu:",
+        getSupabaseErrorMessage(error),
+      );
       setCancelError(
         error instanceof Error
           ? error.message
-          : "Dopyt sa nepodarilo zrušiť. Skontrolujte migráciu supabase/add-cancelled-status.sql.",
+          : "Dopyt sa nepodarilo odstrániť. Skontrolujte migráciu supabase/add-request-service-declines.sql.",
       );
     } finally {
       setIsCancelling(false);
@@ -2527,6 +2715,7 @@ export default function Home() {
                           hasInquiryNotification={
                             activeState === "inquiry" && hasUnseenInquiry(request)
                           }
+                          unreadChatCount={unreadChatByRequestId[request.id] ?? 0}
                           distanceKm={getRequestDistanceFromService(
                             request,
                             appliedServiceLocation,
@@ -2602,6 +2791,8 @@ export default function Home() {
                 onAppointmentCreated={handleAppointmentCreated}
                 onRequestCompleted={handleRequestCompleted}
                 onCustomerRescheduleRequest={handleCustomerRescheduleRequest}
+                onChatMessagesRead={() => handleChatMessagesRead(selectedRequest.id)}
+                unreadChatCount={unreadChatByRequestId[selectedRequest.id] ?? 0}
               />
             </PremiumDetailLock>
           ) : (

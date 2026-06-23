@@ -8,6 +8,7 @@ import type { DriverServiceResponse } from "@/lib/driver-requests-api";
 
 type ServiceResponseCardProps = {
   response: DriverServiceResponse;
+  rescheduleRequested?: boolean;
   onReject: () => void;
   onReschedule: () => void;
   onChat: () => void;
@@ -20,6 +21,7 @@ type ServiceResponseCardProps = {
 
 export function ServiceResponseCard({
   response,
+  rescheduleRequested = false,
   onReject,
   onReschedule,
   onChat,
@@ -43,10 +45,16 @@ export function ServiceResponseCard({
     ]);
   };
 
+  const termStatusLabel = isAccepted
+    ? "Potvrdený termín"
+    : rescheduleRequested
+      ? "Zažiadané o zmenu termínu"
+      : "Navrhovaný termín";
+
   return (
     <View
-      className={`rounded-2xl border bg-white p-4 ${
-        isMapFocused ? "border-[#6c9cbd]" : "border-slate-200"
+      className={`relative rounded-2xl border bg-white p-4 ${
+        isMapFocused ? "border-[#6c9cbd]" : isAccepted ? "border-green-200" : "border-slate-200"
       }`}
       style={buttonShadow}
     >
@@ -77,17 +85,39 @@ export function ServiceResponseCard({
       <Pressable
         onPress={canFocusOnMap ? onFocusOnMap : undefined}
         disabled={!canFocusOnMap || isBusy}
-        className="relative mt-4 rounded-xl bg-slate-50 px-3 py-3 active:bg-slate-100 disabled:opacity-100"
+        className={`relative mt-4 rounded-xl px-3 py-3 active:opacity-100 disabled:opacity-100 ${
+          isAccepted
+            ? "bg-green-50 active:bg-green-50"
+            : rescheduleRequested
+              ? "bg-orange-50 active:bg-orange-50"
+              : "bg-slate-50 active:bg-slate-100"
+        }`}
       >
         {showPendingAlert ? (
           <View className="absolute right-2 top-2 z-10">
             <NotificationAlertIcon />
           </View>
         ) : null}
-        <Text className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {isAccepted ? "Potvrdený termín" : "Navrhovaný termín"}
+        <Text
+          className={`text-xs font-semibold uppercase tracking-wide ${
+            isAccepted
+              ? "text-green-700"
+              : rescheduleRequested
+                ? "text-orange-700"
+                : "text-slate-500"
+          }`}
+        >
+          {termStatusLabel}
         </Text>
-        <Text className="mt-1 text-base font-bold text-casker-navy">{response.scheduleLabel}</Text>
+        {!rescheduleRequested || isAccepted ? (
+          <Text
+            className={`mt-1 text-base font-bold ${
+              isAccepted ? "text-green-800" : "text-casker-navy"
+            }`}
+          >
+            {response.scheduleLabel}
+          </Text>
+        ) : null}
       </Pressable>
 
       {response.message ? (
@@ -98,7 +128,7 @@ export function ServiceResponseCard({
         <ActionButton
           label="Zmena termínu"
           onPress={onReschedule}
-          disabled={isBusy || isAccepted}
+          disabled={isBusy || isAccepted || rescheduleRequested}
         />
         <ActionButton
           label="Chat"
@@ -106,13 +136,20 @@ export function ServiceResponseCard({
           disabled={isBusy}
           badgeCount={unreadChatCount}
         />
-        <ActionButton
-          label={isAccepted ? "Prijaté" : "Prijať"}
-          onPress={onAccept}
-          disabled={isBusy || isAccepted}
-          primary
-        />
+        {!isAccepted ? (
+          <ActionButton label="Prijať" onPress={onAccept} disabled={isBusy} primary />
+        ) : null}
       </View>
+
+      {isAccepted ? (
+        <View
+          pointerEvents="none"
+          className="absolute bottom-4 right-4"
+          accessibilityLabel="Termín potvrdený"
+        >
+          <FontAwesome name="check-circle" size={28} color="#15803d" />
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -1,6 +1,8 @@
 import { Alert, View } from "react-native";
 
 import { DriverRequestCard } from "@/components/driver-request-card";
+import { DriverRequestCompletionCard } from "@/components/driver-request-completion-card";
+import { DriverRequestHistoryCard } from "@/components/driver-request-history-card";
 import { ServiceResponseCard } from "@/components/service-response-card";
 import {
   acceptDriverServiceResponse,
@@ -12,7 +14,10 @@ import {
 
 type DriverRequestThreadProps = {
   request: DriverRequestSummary;
+  mode: "active" | "received" | "history";
   canCancelRequest?: boolean;
+  isConfirmingPickup?: boolean;
+  onConfirmPickup?: () => void;
   onCancelRequest?: () => void;
   onUpdated: () => void;
   busyResponseId?: string | null;
@@ -20,11 +25,16 @@ type DriverRequestThreadProps = {
   onServiceFocus?: (response: DriverServiceResponse) => void;
   focusedServiceResponseId?: string | null;
   onOpenChat?: (serviceName: string) => void;
+  hasUnseenHistoryNotification?: boolean;
+  onAcknowledgeHistoryNotification?: (requestId: string) => void;
 };
 
 export function DriverRequestThread({
   request,
+  mode,
   canCancelRequest = false,
+  isConfirmingPickup = false,
+  onConfirmPickup,
   onCancelRequest,
   onUpdated,
   busyResponseId = null,
@@ -32,7 +42,21 @@ export function DriverRequestThread({
   onServiceFocus,
   focusedServiceResponseId = null,
   onOpenChat,
+  hasUnseenHistoryNotification = false,
+  onAcknowledgeHistoryNotification,
 }: DriverRequestThreadProps) {
+  const showCompletionCard = mode === "received";
+
+  if (mode === "history") {
+    return (
+      <DriverRequestHistoryCard
+        request={request}
+        hasUnseenNotification={hasUnseenHistoryNotification}
+        onAcknowledgeNotification={onAcknowledgeHistoryNotification}
+      />
+    );
+  }
+
   const handleAccept = async (appointmentId: string) => {
     onBusyChange?.(appointmentId);
     try {
@@ -59,20 +83,34 @@ export function DriverRequestThread({
     }
   };
 
-  const handleReschedule = async () => {
-    try {
-      await requestDriverReschedule(request.id);
-      Alert.alert(
-        "Žiadosť odoslaná",
-        "Servis bol informovaný, že žiadate o iný termín. Očakávajte novú ponuku.",
-      );
-      onUpdated();
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Žiadosť o zmenu termínu sa nepodarilo odoslať.";
-      Alert.alert("Chyba", message);
+  const handleReschedule = () => {
+    if (request.rescheduleRequestedAt) {
+      return;
     }
+
+    Alert.alert("Zažiadať o zmenu termínu?", "Servis bude informovaný, že žiadate o iný termín.", [
+      { text: "Zrušiť", style: "cancel" },
+      {
+        text: "Potvrdiť",
+        onPress: () => {
+          void (async () => {
+            try {
+              await requestDriverReschedule(request.id);
+              onUpdated();
+            } catch (error) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : "Žiadosť o zmenu termínu sa nepodarilo odoslať.";
+              Alert.alert("Chyba", message);
+            }
+          })();
+        },
+      },
+    ]);
   };
+
+  const rescheduleRequested = Boolean(request.rescheduleRequestedAt);
 
   return (
     <View className="gap-0">
@@ -82,7 +120,15 @@ export function DriverRequestThread({
         onCancelPress={onCancelRequest}
       />
 
-      {request.serviceResponses.length > 0 ? (
+      {showCompletionCard && onConfirmPickup ? (
+        <DriverRequestCompletionCard
+          request={request}
+          isConfirming={isConfirmingPickup}
+          onConfirmPress={onConfirmPickup}
+        />
+      ) : null}
+
+      {mode === "active" && request.serviceResponses.length > 0 ? (
         <View className="mt-1 pl-5">
           {request.serviceResponses.map((response, index) => (
             <View key={response.id} className="flex-row gap-3">
@@ -99,6 +145,7 @@ export function DriverRequestThread({
               <View className="mb-3 flex-1">
                 <ServiceResponseCard
                   response={response}
+                  rescheduleRequested={rescheduleRequested}
                   isBusy={busyResponseId === response.id}
                   isMapFocused={focusedServiceResponseId === response.id}
                   unreadChatCount={request.unreadChatCount}

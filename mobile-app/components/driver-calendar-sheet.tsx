@@ -1,11 +1,12 @@
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type RefObject,
 } from "react";
 import {
   Modal,
@@ -22,6 +23,7 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withDecay,
   withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -47,9 +49,14 @@ import type { DriverRequestSummary } from "@/lib/driver-requests-api";
 type CalendarView = "day" | "week";
 
 const WEEK_TIME_COLUMN_WIDTH = 44;
+const WEEK_TIME_GUTTER = 12;
+const WEEK_TIME_RAIL_WIDTH = WEEK_TIME_GUTTER + WEEK_TIME_COLUMN_WIDTH;
 const WEEK_DAY_WIDTH = 88;
-const WEEK_EDGE_SCROLL_TOLERANCE = 40;
-const WEEK_EDGE_FLICK_VELOCITY = 0.15;
+const WEEK_DAY_GAP = 6;
+const WEEK_DAY_HEADER_HEIGHT = 34;
+const WEEK_EDGE_SCROLL_TOLERANCE = 24;
+const WEEK_EDGE_FLICK_MIN_DISTANCE = 108;
+const WEEK_EDGE_FLICK_HORIZONTAL_RATIO = 1.35;
 const DAY_SWIPE_COMMIT_RATIO = 0.12;
 const DAY_SWIPE_COMMIT_MIN_PX = 36;
 const DAY_SWIPE_COMMIT_VELOCITY = 280;
@@ -58,6 +65,10 @@ const DAY_SWIPE_CANCEL_MS = 140;
 
 const HOURS = getCalendarHourLabels();
 const TRACK_HEIGHT = getCalendarTrackHeight();
+
+type WeekScrollHandle = {
+  scrollTo: (offset: { x?: number; y?: number }) => void;
+};
 
 type DriverCalendarSheetProps = {
   visible: boolean;
@@ -78,7 +89,7 @@ export function DriverCalendarSheet({
   const [referenceDate, setReferenceDate] = useState(() => new Date());
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const viewRef = useRef<CalendarView>(view);
-  const weekScrollRef = useRef<ScrollView>(null);
+  const weekScrollRef = useRef<WeekScrollHandle>(null);
   const weekScrollMetricsRef = useRef({
     offsetX: 0,
     layoutWidth: 0,
@@ -123,7 +134,7 @@ export function DriverCalendarSheet({
       ? weekScrollMetricsRef.current.offsetX
       : 0;
 
-    weekScrollRef.current?.scrollTo({ x: targetX, animated: false });
+    weekScrollRef.current?.scrollTo({ x: targetX });
     weekNavFromEdgeRef.current = false;
   }, []);
 
@@ -148,8 +159,28 @@ export function DriverCalendarSheet({
   );
 
   const handleWeekEdgeFlick = useCallback(
-    (offsetX: number, layoutWidth: number, contentWidth: number, velocityX: number) => {
+    (
+      offsetX: number,
+      layoutWidth: number,
+      contentWidth: number,
+      translationX: number,
+      translationY: number,
+    ) => {
       if (viewRef.current !== "week" || weekEdgeNavLockRef.current) {
+        return;
+      }
+
+      if (layoutWidth <= 0 || contentWidth <= 0) {
+        return;
+      }
+
+      const absTranslationX = Math.abs(translationX);
+      const absTranslationY = Math.abs(translationY);
+      const isDeliberateHorizontalSwipe =
+        absTranslationX >= WEEK_EDGE_FLICK_MIN_DISTANCE &&
+        absTranslationX >= absTranslationY * WEEK_EDGE_FLICK_HORIZONTAL_RATIO;
+
+      if (!isDeliberateHorizontalSwipe) {
         return;
       }
 
@@ -163,14 +194,14 @@ export function DriverCalendarSheet({
       let direction: -1 | 1 | null = null;
 
       if (fullWeekVisible) {
-        if (velocityX > WEEK_EDGE_FLICK_VELOCITY) {
+        if (translationX >= WEEK_EDGE_FLICK_MIN_DISTANCE) {
           direction = -1;
-        } else if (velocityX < -WEEK_EDGE_FLICK_VELOCITY) {
+        } else if (translationX <= -WEEK_EDGE_FLICK_MIN_DISTANCE) {
           direction = 1;
         }
-      } else if (atLeftEdge && velocityX > WEEK_EDGE_FLICK_VELOCITY) {
+      } else if (atLeftEdge && translationX >= WEEK_EDGE_FLICK_MIN_DISTANCE) {
         direction = -1;
-      } else if (atRightEdge && velocityX < -WEEK_EDGE_FLICK_VELOCITY) {
+      } else if (atRightEdge && translationX <= -WEEK_EDGE_FLICK_MIN_DISTANCE) {
         direction = 1;
       }
 
@@ -185,7 +216,7 @@ export function DriverCalendarSheet({
         layoutWidth,
         contentWidth,
       };
-      weekScrollRef.current?.scrollTo({ x: offsetX, animated: false });
+      weekScrollRef.current?.scrollTo({ x: offsetX });
       navigatePeriod(direction);
       requestAnimationFrame(() => {
         weekEdgeNavLockRef.current = false;
@@ -205,7 +236,7 @@ export function DriverCalendarSheet({
   useEffect(() => {
     weekNavFromEdgeRef.current = false;
     if (view === "week") {
-      weekScrollRef.current?.scrollTo({ x: 0, animated: false });
+      weekScrollRef.current?.scrollTo({ x: 0, y: 0 });
     }
   }, [view]);
 
@@ -274,11 +305,11 @@ export function DriverCalendarSheet({
                 ? formatCalendarHeaderDate(referenceDate)
                 : `${formatCalendarShortDay(weekDays[0])} – ${formatCalendarShortDay(weekDays[6])}`}
             </Text>
-            <Text className="mt-1 text-center text-[11px] text-slate-400">
-              {view === "day"
-                ? "Potiahni vľavo/vpravo pre ďalší deň"
-                : "Ľavý okraj: potiahni vpravo · Pravý okraj: potiahni vľavo"}
-            </Text>
+            {view === "day" ? (
+              <Text className="mt-1 text-center text-[11px] text-slate-400">
+                Potiahni vľavo/vpravo pre ďalší deň
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -304,7 +335,7 @@ export function DriverCalendarSheet({
             />
           ) : (
             <WeekCalendarPanel
-              weekScrollRef={weekScrollRef}
+              ref={weekScrollRef}
               weekDays={weekDays}
               entries={entries}
               today={today}
@@ -530,127 +561,282 @@ function ViewModeButton({
   );
 }
 
-function WeekCalendarPanel({
-  weekScrollRef,
-  weekDays,
-  entries,
-  today,
-  selectedEntryId,
-  onSelectEntry,
-  onHorizontalScroll,
-  onHorizontalScrollEnd,
-}: {
-  weekScrollRef?: RefObject<ScrollView | null>;
-  weekDays: Date[];
-  entries: DriverCalendarEntry[];
-  today: Date;
-  selectedEntryId: string | null;
-  onSelectEntry: (id: string | null) => void;
-  onHorizontalScroll?: (offsetX: number, layoutWidth: number, contentWidth: number) => void;
-  onHorizontalScrollEnd?: (
-    offsetX: number,
-    layoutWidth: number,
-    contentWidth: number,
-    velocityX: number,
-  ) => void;
-}) {
-  return (
-    <ScrollView
-      style={styles.weekScroll}
-      showsVerticalScrollIndicator={false}
-      nestedScrollEnabled
-      contentContainerStyle={[styles.weekVerticalContent, { minHeight: TRACK_HEIGHT + 56 }]}
-    >
-      <ScrollView
-        ref={weekScrollRef}
-        style={{ height: TRACK_HEIGHT + 42 }}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        nestedScrollEnabled
-        bounces
-        overScrollMode="always"
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.weekScrollContent}
-        onScroll={
-          onHorizontalScroll
-            ? (event) => {
-                const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
-                onHorizontalScroll(
-                  contentOffset.x,
-                  layoutMeasurement.width,
-                  contentSize.width,
-                );
-              }
-            : undefined
-        }
-        onScrollEndDrag={
-          onHorizontalScrollEnd
-            ? (event) => {
-                const { contentOffset, layoutMeasurement, contentSize, velocity } =
-                  event.nativeEvent;
-                onHorizontalScrollEnd(
-                  contentOffset.x,
-                  layoutMeasurement.width,
-                  contentSize.width,
-                  velocity?.x ?? 0,
-                );
-              }
-            : undefined
-        }
-      >
-        <View style={styles.weekGrid}>
-          <View style={styles.weekTimeColumn}>
-            <View style={styles.weekCorner} />
-            <View style={{ height: TRACK_HEIGHT }}>
-              {HOURS.map((hour) => (
-                <Text key={hour} style={styles.hourLabel}>
-                  {formatCalendarHourLabel(hour)}
-                </Text>
-              ))}
-            </View>
-          </View>
-
-          {weekDays.map((day, dayIndex) => {
-            const dayKey = toDateKey(day);
-            const items = entries.filter((entry) => entry.appointmentDate === dayKey);
-            const groups = groupCalendarEntriesByTime(items);
-            const isToday = isSameDay(day, today);
-
-            return (
-              <View
-                key={`week-day-${dayIndex}`}
-                style={[styles.weekDayColumn, isToday && styles.weekDayColumnToday]}
-              >
-                <Text style={styles.weekDayHead}>{formatCalendarShortDay(day)}</Text>
-                <View style={[styles.timeTrack, { height: TRACK_HEIGHT }]}>
-                  {renderHourLines()}
-                  {groups.map((group) => (
-                    <View
-                      key={group.timeKey}
-                      style={[styles.eventStack, { top: group.top }]}
-                    >
-                      {group.items.map((entry) => (
-                        <CalendarEventCard
-                          key={entry.id}
-                          entry={entry}
-                          compact
-                          selected={selectedEntryId === entry.id}
-                          onPress={() =>
-                            onSelectEntry(selectedEntryId === entry.id ? null : entry.id)
-                          }
-                        />
-                      ))}
-                    </View>
-                  ))}
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
-    </ScrollView>
-  );
+function clampScrollOffset(value: number, maxOffset: number) {
+  "worklet";
+  return Math.min(Math.max(value, 0), Math.max(0, maxOffset));
 }
+
+const WeekCalendarPanel = forwardRef<
+  WeekScrollHandle,
+  {
+    weekDays: Date[];
+    entries: DriverCalendarEntry[];
+    today: Date;
+    selectedEntryId: string | null;
+    onSelectEntry: (id: string | null) => void;
+    onHorizontalScroll?: (offsetX: number, layoutWidth: number, contentWidth: number) => void;
+    onHorizontalScrollEnd?: (
+      offsetX: number,
+      layoutWidth: number,
+      contentWidth: number,
+      translationX: number,
+      translationY: number,
+    ) => void;
+  }
+>(function WeekCalendarPanel(
+  {
+    weekDays,
+    entries,
+    today,
+    selectedEntryId,
+    onSelectEntry,
+    onHorizontalScroll,
+    onHorizontalScrollEnd,
+  },
+  ref,
+) {
+  const scrollX = useSharedValue(0);
+  const scrollY = useSharedValue(0);
+  const panStartX = useSharedValue(0);
+  const panStartY = useSharedValue(0);
+  const viewportWidth = useSharedValue(0);
+  const viewportHeight = useSharedValue(0);
+  const contentWidth = useSharedValue(0);
+  const contentHeight = useSharedValue(0);
+  const nativePressGesture = useMemo(() => Gesture.Native(), []);
+
+  const reportScroll = useCallback(
+    (offsetX: number, layoutWidth: number, contentWidthValue: number) => {
+      onHorizontalScroll?.(offsetX, layoutWidth, contentWidthValue);
+    },
+    [onHorizontalScroll],
+  );
+
+  const reportScrollEnd = useCallback(
+    (
+      offsetX: number,
+      layoutWidth: number,
+      contentWidthValue: number,
+      translationX: number,
+      translationY: number,
+    ) => {
+      onHorizontalScrollEnd?.(
+        offsetX,
+        layoutWidth,
+        contentWidthValue,
+        translationX,
+        translationY,
+      );
+    },
+    [onHorizontalScrollEnd],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollTo: ({ x, y }) => {
+        const maxX = Math.max(0, contentWidth.value - viewportWidth.value);
+        const maxY = Math.max(0, contentHeight.value - viewportHeight.value);
+        if (x !== undefined) {
+          scrollX.value = clampScrollOffset(x, maxX);
+        }
+        if (y !== undefined) {
+          scrollY.value = clampScrollOffset(y, maxY);
+        }
+      },
+    }),
+    [contentHeight, contentWidth, scrollX, scrollY, viewportHeight, viewportWidth],
+  );
+
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(4)
+        .simultaneousWithExternalGesture(nativePressGesture)
+        .onBegin(() => {
+          panStartX.value = scrollX.value;
+          panStartY.value = scrollY.value;
+        })
+        .onUpdate((event) => {
+          const maxX = Math.max(0, contentWidth.value - viewportWidth.value);
+          const maxY = Math.max(0, contentHeight.value - viewportHeight.value);
+          const nextX = clampScrollOffset(panStartX.value - event.translationX, maxX);
+          const nextY = clampScrollOffset(panStartY.value - event.translationY, maxY);
+          scrollX.value = nextX;
+          scrollY.value = nextY;
+
+          if (onHorizontalScroll) {
+            runOnJS(reportScroll)(nextX, viewportWidth.value, contentWidth.value);
+          }
+        })
+        .onEnd((event) => {
+          const maxX = Math.max(0, contentWidth.value - viewportWidth.value);
+          const maxY = Math.max(0, contentHeight.value - viewportHeight.value);
+          const endX = scrollX.value;
+          const endY = scrollY.value;
+
+          scrollX.value = withDecay({
+            velocity: -event.velocityX,
+            clamp: [0, maxX],
+            rubberBandEffect: true,
+          });
+          scrollY.value = withDecay({
+            velocity: -event.velocityY,
+            clamp: [0, maxY],
+            rubberBandEffect: true,
+          });
+
+          if (onHorizontalScrollEnd) {
+            runOnJS(reportScrollEnd)(
+              endX,
+              viewportWidth.value,
+              contentWidth.value,
+              event.translationX,
+              event.translationY,
+            );
+          }
+        }),
+    [
+      contentHeight,
+      contentWidth,
+      nativePressGesture,
+      onHorizontalScroll,
+      onHorizontalScrollEnd,
+      panStartX,
+      panStartY,
+      reportScroll,
+      reportScrollEnd,
+      scrollX,
+      scrollY,
+      viewportHeight,
+      viewportWidth,
+    ],
+  );
+
+  const headerScrollStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: -scrollX.value }],
+  }));
+
+  const timeScrollStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -scrollY.value }],
+  }));
+
+  const gridScrollStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: -scrollX.value },
+      { translateY: -scrollY.value },
+    ],
+  }));
+
+  return (
+    <View style={styles.week2DViewport}>
+      <View style={styles.weekFrozenHeaderRow}>
+        <View style={styles.weekCornerCell} />
+        <View style={styles.weekDayHeadersClip}>
+          <Animated.View style={headerScrollStyle}>
+            <View style={styles.weekDayHeadersRow}>
+              {weekDays.map((day, dayIndex) => {
+                const isToday = isSameDay(day, today);
+
+                return (
+                  <View
+                    key={`week-head-${dayIndex}`}
+                    style={[
+                      styles.weekDayHeaderCell,
+                      dayIndex > 0 && styles.weekDayHeaderCellGap,
+                      isToday && styles.weekDayColumnToday,
+                    ]}
+                  >
+                    <Text style={styles.weekDayHead}>{formatCalendarShortDay(day)}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </Animated.View>
+        </View>
+      </View>
+
+      <View style={styles.weekFrozenBody}>
+        <View style={styles.weekTimeRail}>
+          <View style={styles.weekTimeRailClip}>
+            <Animated.View style={timeScrollStyle}>
+              <View style={{ height: TRACK_HEIGHT }}>
+                {HOURS.map((hour) => (
+                  <Text key={hour} style={styles.hourLabel}>
+                    {formatCalendarHourLabel(hour)}
+                  </Text>
+                ))}
+              </View>
+            </Animated.View>
+          </View>
+        </View>
+
+        <View
+          style={styles.weekScrollableViewport}
+          onLayout={(event) => {
+            viewportWidth.value = event.nativeEvent.layout.width;
+            viewportHeight.value = event.nativeEvent.layout.height;
+          }}
+        >
+          <GestureDetector gesture={panGesture}>
+            <Animated.View style={styles.week2DCanvas}>
+              <Animated.View
+                style={[styles.week2DContent, gridScrollStyle]}
+                onLayout={(event) => {
+                  contentWidth.value = event.nativeEvent.layout.width;
+                  contentHeight.value = event.nativeEvent.layout.height;
+                }}
+              >
+                <View style={styles.weekDayBodyRow}>
+                  {weekDays.map((day, dayIndex) => {
+                    const dayKey = toDateKey(day);
+                    const items = entries.filter((entry) => entry.appointmentDate === dayKey);
+                    const groups = groupCalendarEntriesByTime(items);
+                    const isToday = isSameDay(day, today);
+
+                    return (
+                      <View
+                        key={`week-day-${dayIndex}`}
+                        style={[
+                          styles.weekDayBodyColumn,
+                          dayIndex > 0 && styles.weekDayBodyColumnGap,
+                          isToday && styles.weekDayColumnToday,
+                        ]}
+                      >
+                        <View style={[styles.timeTrack, { height: TRACK_HEIGHT }]}>
+                          {renderHourLines()}
+                          {groups.map((group) => (
+                            <View
+                              key={group.timeKey}
+                              style={[styles.eventStack, { top: group.top }]}
+                            >
+                              {group.items.map((entry) => (
+                                <GestureDetector key={entry.id} gesture={nativePressGesture}>
+                                  <CalendarEventCard
+                                    entry={entry}
+                                    compact
+                                    selected={selectedEntryId === entry.id}
+                                    onPress={() =>
+                                      onSelectEntry(selectedEntryId === entry.id ? null : entry.id)
+                                    }
+                                  />
+                                </GestureDetector>
+                              ))}
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </Animated.View>
+            </Animated.View>
+          </GestureDetector>
+        </View>
+      </View>
+    </View>
+  );
+});
 
 function DayTimeGrid({
   groups,
@@ -751,14 +937,92 @@ const styles = StyleSheet.create({
   calendarScroll: {
     flex: 1,
   },
-  weekScroll: {
+  week2DViewport: {
     flex: 1,
+    overflow: "hidden",
+    paddingTop: 8,
   },
-  weekVerticalContent: {
+  weekFrozenHeaderRow: {
+    flexDirection: "row",
+    zIndex: 2,
+  },
+  weekCornerCell: {
+    width: WEEK_TIME_RAIL_WIDTH,
+    height: WEEK_DAY_HEADER_HEIGHT,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(15, 23, 42, 0.08)",
+    backgroundColor: "#ffffff",
+  },
+  weekDayHeadersClip: {
+    flex: 1,
+    height: WEEK_DAY_HEADER_HEIGHT,
+    overflow: "hidden",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(15, 23, 42, 0.08)",
+    backgroundColor: "#ffffff",
+  },
+  weekDayHeadersRow: {
+    flexDirection: "row",
+    paddingRight: 12,
+  },
+  weekDayHeaderCell: {
+    width: WEEK_DAY_WIDTH,
+    height: WEEK_DAY_HEADER_HEIGHT,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(15, 23, 42, 0.1)",
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.98)",
+  },
+  weekDayHeaderCellGap: {
+    marginLeft: WEEK_DAY_GAP,
+  },
+  weekFrozenBody: {
+    flex: 1,
+    flexDirection: "row",
+    overflow: "hidden",
+  },
+  weekTimeRail: {
+    width: WEEK_TIME_RAIL_WIDTH,
+    zIndex: 2,
+    backgroundColor: "#ffffff",
+  },
+  weekTimeRailClip: {
+    flex: 1,
+    overflow: "hidden",
+    paddingLeft: WEEK_TIME_GUTTER,
+    width: WEEK_TIME_COLUMN_WIDTH + WEEK_TIME_GUTTER,
+  },
+  weekScrollableViewport: {
+    flex: 1,
+    overflow: "hidden",
+  },
+  week2DCanvas: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  week2DContent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+  },
+  weekDayBodyRow: {
+    flexDirection: "row",
+    paddingRight: 12,
     paddingBottom: 16,
   },
-  weekScrollContent: {
-    paddingBottom: 8,
+  weekDayBodyColumn: {
+    width: WEEK_DAY_WIDTH,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: "rgba(15, 23, 42, 0.1)",
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+  },
+  weekDayBodyColumnGap: {
+    marginLeft: WEEK_DAY_GAP,
   },
   scrollContent: {
     paddingBottom: 24,
@@ -836,39 +1100,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#475569",
   },
-  weekGrid: {
-    flexDirection: "row",
-    paddingTop: 8,
-    paddingBottom: 16,
-    paddingRight: 12,
-  },
-  weekTimeColumn: {
-    width: WEEK_TIME_COLUMN_WIDTH,
-    marginLeft: 12,
-  },
-  weekCorner: {
-    height: 34,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(15, 23, 42, 0.08)",
-  },
-  weekDayColumn: {
-    width: WEEK_DAY_WIDTH,
-    marginLeft: 6,
-    borderWidth: 1,
-    borderColor: "rgba(15, 23, 42, 0.1)",
-    borderRadius: 8,
-    overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-  },
   weekDayColumnToday: {
     borderColor: "rgba(11, 25, 79, 0.28)",
     backgroundColor: "rgba(11, 25, 79, 0.04)",
   },
   weekDayHead: {
-    paddingVertical: 8,
     paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(15, 23, 42, 0.08)",
     fontSize: 10,
     fontWeight: "700",
     color: "#334155",

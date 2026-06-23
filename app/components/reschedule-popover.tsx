@@ -139,7 +139,7 @@ export function ReschedulePopover({
     setAppointmentTime(
       currentAppointment?.appointment_time.slice(0, 5) ?? "08:00",
     );
-    setMessage(currentAppointment?.message ?? "");
+    setMessage("");
   }, [currentAppointment, isOpen, updatePosition]);
 
   useEffect(() => {

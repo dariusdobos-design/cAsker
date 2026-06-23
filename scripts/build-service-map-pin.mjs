@@ -2,12 +2,10 @@ import sharp from "sharp";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
-const WIDTH = 100;
-const HEIGHT = 120;
-const LOGO_SIZE = 48;
 const PIN_STROKE = "#6c9cbd";
 
-const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 40 48">
+function createPinSvg(width, height) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 40 48">
   <defs>
     <filter id="shadow" x="-30%" y="-20%" width="160%" height="150%">
       <feDropShadow dx="0" dy="2" stdDeviation="1.6" flood-color="#0f172a" flood-opacity="0.2"/>
@@ -21,16 +19,17 @@ const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height
     stroke-width="2"
   />
 </svg>`;
+}
 
-const logoLeft = Math.round((WIDTH - LOGO_SIZE) / 2);
-const logoTop = Math.round((17.5 / 48) * HEIGHT - LOGO_SIZE / 2);
-
-async function buildPin(outputPath) {
-  const pinBuffer = await sharp(Buffer.from(PIN_SVG)).png().toBuffer();
+async function buildPin(outputPath, { width, height, logoSize }) {
+  const pinBuffer = await sharp(Buffer.from(createPinSvg(width, height))).png().toBuffer();
   const logoBuffer = await sharp("public/icons/car-repair.png")
-    .resize(LOGO_SIZE, LOGO_SIZE, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .resize(logoSize, logoSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();
+
+  const logoLeft = Math.round((width - logoSize) / 2);
+  const logoTop = Math.round((17.5 / 48) * height - logoSize / 2);
 
   mkdirSync(resolve(outputPath, ".."), { recursive: true });
 
@@ -40,6 +39,14 @@ async function buildPin(outputPath) {
     .toFile(outputPath);
 }
 
-await buildPin("public/icons/service-map-pin.png");
-await buildPin("mobile-app/assets/icons/service-map-pin.png");
+await buildPin("public/icons/service-map-pin.png", {
+  width: 100,
+  height: 120,
+  logoSize: 48,
+});
+await buildPin("mobile-app/assets/icons/service-map-pin.png", {
+  width: 132,
+  height: 158,
+  logoSize: 63,
+});
 console.log("service-map-pin.png generated");

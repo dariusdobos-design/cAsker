@@ -40,6 +40,9 @@ const CUSTOMER_VISIBLE_REQUEST_STATUSES = new Set<Request["status"]>([
   "inquiry",
   "waiting",
   "done",
+  "completed",
+  "cancelled",
+  "expired",
 ]);
 
 function appointmentServiceLocation(appointment: Appointment): ServiceLocation {

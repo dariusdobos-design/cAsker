@@ -148,6 +148,8 @@ export function RequestArchiveDetail({
               vehicleCategory={request.vehicleCategory}
               year={request.year}
               engine={request.engine}
+              engineVolume={request.engineVolume}
+              vehicleName={request.vehicleName}
               power={request.power}
               fuelType={request.fuelType}
               vin={request.vin}

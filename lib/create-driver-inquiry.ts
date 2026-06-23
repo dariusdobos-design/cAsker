@@ -1,3 +1,4 @@
+import { normalizeInquiryPhotos } from "./inquiry-photos";
 import {
   fetchVehicleByEcv,
   isValidEcv,
@@ -29,11 +30,14 @@ export type DriverInquiryInput = {
   locationCity: string;
   radiusKm: number;
   description: string;
+  photos?: string[];
   latitude?: number;
   longitude?: number;
   userName?: string;
   phone?: string;
   vehicleSpecs?: DriverVehicleSpecs;
+  targetCompanyId?: string;
+  targetCompanyName?: string;
 };
 
 function categoryServiceLabel(category: RequestCategory) {
@@ -51,6 +55,18 @@ function buildInquiryDescription(
   const locationLine = `Hľadám servis v okolí ${Math.round(radiusKm)} km od ${locationCity.trim()}.`;
 
   return [trimmed, locationLine].filter(Boolean).join("\n\n");
+}
+
+function buildDirectInquiryDescription(
+  description: string,
+  companyName: string,
+  locationCity: string,
+) {
+  const trimmed = description.trim();
+  const targetLine = `Priamy dopyt pre ${companyName.trim()}.`;
+  const locationLine = `Poloha: ${locationCity.trim()}.`;
+
+  return [trimmed, targetLine, locationLine].filter(Boolean).join("\n\n");
 }
 
 function createInquiryId() {
@@ -82,6 +98,20 @@ export async function createDriverInquiry(input: DriverInquiryInput): Promise<Re
     throw new Error("Zadajte mesto alebo použite „Moja poloha“.");
   }
 
+  const targetCompanyId = input.targetCompanyId?.trim() || null;
+  const targetCompanyName = input.targetCompanyName?.trim() || "";
+  const isDirectInquiry = Boolean(targetCompanyId);
+
+  if (isDirectInquiry && !targetCompanyName) {
+    throw new Error("Chýba názov cieľovej firmy.");
+  }
+
+  const photos = normalizeInquiryPhotos(input.photos);
+
+  if (isDirectInquiry && !input.description.trim() && photos.length === 0) {
+    throw new Error("Opíšte, čo potrebujete, alebo priložte fotku.");
+  }
+
   const registry = await enrichVehicleFromRegistry(input.licensePlate);
   const specs = input.vehicleSpecs;
   const vehicleName =
@@ -99,9 +129,11 @@ export async function createDriverInquiry(input: DriverInquiryInput): Promise<Re
     vehicleCategory: "car",
     vehicleName,
     vehicleTitle,
-    service: categoryServiceLabel(input.requestCategory),
+    service: isDirectInquiry
+      ? `Priamy dopyt — ${targetCompanyName}`
+      : categoryServiceLabel(input.requestCategory),
     licensePlate: normalizeEcv(input.licensePlate) || input.licensePlate.trim(),
-    distanceKm: Math.max(0, Number(input.radiusKm) || 0),
+    distanceKm: isDirectInquiry ? 0 : Math.max(0, Number(input.radiusKm) || 0),
     locationCity,
     vin: registry?.vin?.trim() || specs?.vin?.trim() || "—",
     engineVolume: specs?.engineVolume?.trim() || "—",
@@ -114,14 +146,14 @@ export async function createDriverInquiry(input: DriverInquiryInput): Promise<Re
     doors: specs?.doors ?? 5,
     mileageKm: specs?.mileageKm ?? 0,
     transmission: specs?.transmission?.trim() || "—",
-    inquiryDescription: buildInquiryDescription(
-      input.description,
-      locationCity,
-      input.radiusKm,
-    ),
+    inquiryDescription: isDirectInquiry
+      ? buildDirectInquiryDescription(input.description, targetCompanyName, locationCity)
+      : buildInquiryDescription(input.description, locationCity, input.radiusKm),
+    inquiryPhotos: photos,
     userName: input.userName?.trim() || "Zákazník cAsker",
     phone: input.phone?.trim() || "+421 944 649 089",
     createdAt,
+    targetCompanyId,
   };
 
   await upsertRequest(request, createdAt);

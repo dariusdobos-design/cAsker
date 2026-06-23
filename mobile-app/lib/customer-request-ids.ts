@@ -37,20 +37,22 @@ export async function clearCustomerRequestIds() {
   await AsyncStorage.removeItem(STORAGE_KEY);
 }
 
-/** Ponechá v úložisku len ID, ktoré ešte existujú na serveri. */
+/** Doplní uložené ID o dopyty z posledného načítania. Pri prázdnej odpovedi nič nemaže. */
 export async function syncCustomerRequestIds(existingRequestIds: string[]) {
-  const validIds = new Set(
-    existingRequestIds.map((id) => id.trim()).filter((id) => id.length > 0),
-  );
-  const stored = await loadCustomerRequestIds();
-  const pruned = stored.filter((id) => validIds.has(id));
+  const normalized = existingRequestIds
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
 
-  if (pruned.length === 0) {
-    await clearCustomerRequestIds();
+  if (normalized.length === 0) {
     return;
   }
 
-  if (pruned.length !== stored.length) {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(pruned));
+  const stored = await loadCustomerRequestIds();
+  const merged = [...new Set([...normalized, ...stored])];
+
+  if (merged.length === stored.length && normalized.every((id) => stored.includes(id))) {
+    return;
   }
+
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
 }

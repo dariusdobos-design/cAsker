@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import {
-  fetchVehicleByEcv,
-  VehicleLookupError,
-} from "@/lib/stkonline-vehicle";
+import { lookupVehicleByEcv } from "@/lib/vehicle-lookup";
+import { VehicleLookupError } from "@/lib/stkonline-vehicle";
+import { DatabazaVozidielVehicleLookupError } from "@/lib/databazavozidiel-vehicle";
+import { GafaVehicleLookupError } from "@/lib/gafa-vehicle";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -16,10 +16,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    const vehicle = await fetchVehicleByEcv(ecv);
+    const vehicle = await lookupVehicleByEcv(ecv);
     return NextResponse.json(vehicle);
   } catch (error) {
-    if (error instanceof VehicleLookupError) {
+    if (
+      error instanceof VehicleLookupError ||
+      error instanceof GafaVehicleLookupError ||
+      error instanceof DatabazaVozidielVehicleLookupError
+    ) {
       const status =
         error.code === "INVALID_ECV"
           ? 400

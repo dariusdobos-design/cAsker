@@ -322,11 +322,7 @@ export function MapCalendar({
                       style={{ height: `${TRACK_HEIGHT_REM}rem` }}
                     >
                       {renderTimeTrackLines()}
-                      {groups.length === 0 ? (
-                        <span className="casker-calendar-week-empty">Voľno</span>
-                      ) : (
-                        renderPositionedAppointments(groups, true)
-                      )}
+                      {groups.length > 0 ? renderPositionedAppointments(groups, true) : null}
                     </div>
                   </div>
                 );

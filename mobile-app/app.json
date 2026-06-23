@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile-app",
+    "name": "cAsker",
     "slug": "mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,7 +16,9 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "cAsker používa polohu na zobrazenie mapy a dopytov vo vašom okolí."
+        "NSLocationWhenInUseUsageDescription": "cAsker používa polohu na zobrazenie mapy a dopytov vo vašom okolí.",
+        "NSCameraUsageDescription": "cAsker potrebuje prístup k fotoaparátu, aby ste mohli odfotiť závadu a priložiť ju k dopytu.",
+        "NSPhotoLibraryUsageDescription": "cAsker potrebuje prístup k fotkám, aby ste ich mohli priložiť k dopytu."
       }
     },
     "android": {
@@ -29,7 +31,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "CAMERA"
       ]
     },
     "web": {
@@ -43,6 +46,13 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "cAsker používa polohu na zobrazenie mapy a dopytov vo vašom okolí."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "cAsker potrebuje prístup k fotkám pre priloženie k dopytu.",
+          "cameraPermission": "cAsker potrebuje prístup k fotoaparátu pre priloženie fotky k dopytu."
         }
       ]
     ],

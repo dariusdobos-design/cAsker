@@ -1,14 +1,33 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+let supabaseClient: SupabaseClient | null = null;
 
-if (!supabaseUrl) {
-  throw new Error("Missing env variable: NEXT_PUBLIC_SUPABASE_URL");
+function createSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error("Missing env variable: NEXT_PUBLIC_SUPABASE_URL");
+  }
+
+  if (!supabaseAnonKey) {
+    throw new Error("Missing env variable: NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
 }
 
-if (!supabaseAnonKey) {
-  throw new Error("Missing env variable: NEXT_PUBLIC_SUPABASE_ANON_KEY");
+function getSupabaseClient() {
+  if (!supabaseClient) {
+    supabaseClient = createSupabaseClient();
+  }
+
+  return supabaseClient;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop, receiver) {
+    const value = Reflect.get(getSupabaseClient(), prop, receiver);
+    return typeof value === "function" ? value.bind(getSupabaseClient()) : value;
+  },
+});

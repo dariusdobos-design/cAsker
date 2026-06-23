@@ -34,9 +34,16 @@ export type DriverRequestSummary = {
   service: string;
   year: number;
   inquiryDescription: string;
+  inquiryPhotos?: string[];
   createdAt: string;
   serviceResponses: DriverServiceResponse[];
   unreadChatCount: number;
+  completedWork?: string | null;
+  vehiclePickupNote?: string | null;
+  customerPickupConfirmedAt?: string | null;
+  rescheduleRequestedAt?: string | null;
+  cancelReason?: "customer" | "no_service_accepted" | null;
+  targetCompanyId?: string | null;
 };
 
 export type DriverRequestMessage = {
@@ -62,6 +69,18 @@ export function isActiveDriverRequest(status: DriverRequestStatus) {
   return status === "inquiry" || status === "waiting" || status === "done";
 }
 
+export function isReceivedDriverRequest(request: Pick<DriverRequestSummary, "status" | "customerPickupConfirmedAt">) {
+  return request.status === "completed" && !request.customerPickupConfirmedAt;
+}
+
+export function isHistoryDriverRequest(request: Pick<DriverRequestSummary, "status" | "customerPickupConfirmedAt">) {
+  if (request.status === "cancelled" || request.status === "expired") {
+    return true;
+  }
+
+  return request.status === "completed" && Boolean(request.customerPickupConfirmedAt);
+}
+
 export async function fetchMyDriverRequests(ids: string[]) {
   const response = await fetch(`${getApiBaseUrl()}/api/requests/mine`, {
     method: "POST",
@@ -81,6 +100,7 @@ export async function fetchMyDriverRequests(ids: string[]) {
 
   return (payload?.requests ?? []).map((request) => ({
     ...request,
+    inquiryPhotos: request.inquiryPhotos ?? [],
     serviceResponses: request.serviceResponses ?? [],
     unreadChatCount: request.unreadChatCount ?? 0,
   }));
@@ -190,6 +210,22 @@ export async function rejectDriverServiceResponse(appointmentId: string) {
   }
 
   return payload?.requestId ?? null;
+}
+
+export async function confirmDriverVehiclePickup(requestId: string) {
+  const response = await fetch(`${getApiBaseUrl()}/api/requests/confirm-pickup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ requestId }),
+  });
+
+  const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Prevzatie vozidla sa nepodarilo potvrdiť.");
+  }
 }
 
 export async function requestDriverReschedule(requestId: string) {

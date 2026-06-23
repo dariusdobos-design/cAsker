@@ -192,7 +192,10 @@ export function buildCalendarAppointments(
     return request?.status === "done";
   });
 
-  return [...calendarAccepted, ...pendingForDone].sort((left, right) => {
+  const merged = [...calendarAccepted, ...pendingForDone];
+  const deduped = buildAppointmentMapByRequestId(merged, requests);
+
+  return Array.from(deduped.values()).sort((left, right) => {
     const dateCompare = left.appointment_date.localeCompare(right.appointment_date);
     if (dateCompare !== 0) return dateCompare;
     return left.appointment_time.localeCompare(right.appointment_time);
@@ -363,6 +366,24 @@ async function recordAppointmentProposal(input: {
   return data as AppointmentProposal;
 }
 
+function appointmentStatusRank(status: AppointmentStatus) {
+  if (status === "accepted") return 2;
+  if (status === "pending") return 1;
+  return 0;
+}
+
+export function pickPreferredAppointment(left: Appointment, right: Appointment) {
+  const leftRank = appointmentStatusRank(left.status);
+  const rightRank = appointmentStatusRank(right.status);
+  if (leftRank !== rightRank) {
+    return leftRank > rightRank ? left : right;
+  }
+
+  const leftWhen = appointmentDateTime(left).getTime();
+  const rightWhen = appointmentDateTime(right).getTime();
+  return leftWhen >= rightWhen ? left : right;
+}
+
 export function buildAppointmentMapByRequestId(
   appointments: Appointment[],
   requests: RequestLike[],
@@ -370,14 +391,26 @@ export function buildAppointmentMapByRequestId(
   const map = new Map<string, Appointment>();
 
   for (const appointment of appointments) {
-    if (appointment.request_id && !map.has(appointment.request_id)) {
-      map.set(appointment.request_id, appointment);
+    if (appointment.request_id) {
+      const existing = map.get(appointment.request_id);
+      map.set(
+        appointment.request_id,
+        existing
+          ? pickPreferredAppointment(existing, appointment)
+          : appointment,
+      );
       continue;
     }
 
     const matchedRequest = findRequestForAppointment(appointment, requests);
-    if (matchedRequest && !map.has(matchedRequest.id)) {
-      map.set(matchedRequest.id, appointment);
+    if (matchedRequest) {
+      const existing = map.get(matchedRequest.id);
+      map.set(
+        matchedRequest.id,
+        existing
+          ? pickPreferredAppointment(existing, appointment)
+          : appointment,
+      );
     }
   }
 
@@ -492,29 +525,63 @@ export async function createPendingAppointment(input: {
     ...buildServiceInfoPayload(input.serviceInfo),
   };
 
-  let { error } = await supabase.from("appointments").insert(appointmentPayload);
+  const { data: existingRows, error: findError } = await supabase
+    .from("appointments")
+    .select("id")
+    .eq("request_id", input.request.id)
+    .in("status", ["accepted", "pending"])
+    .order("created_at", { ascending: false })
+    .limit(1);
 
-  if (error?.code === "PGRST204") {
-    const {
-      request_id: _requestId,
-      message: _message,
-      company_name: _companyName,
-      service_address: _serviceAddress,
-      service_city: _serviceCity,
-      service_zip: _serviceZip,
-      ...legacyPayload
-    } = appointmentPayload;
-    ({ error } = await supabase.from("appointments").insert(legacyPayload));
+  if (findError) throw findError;
+
+  const existing = existingRows?.[0];
+
+  if (existing?.id) {
+    const { error: updateError } = await supabase
+      .from("appointments")
+      .update({
+        ...appointmentPayload,
+        reschedule_requested_at: null,
+      })
+      .eq("id", existing.id);
+
+    if (updateError) {
+      if (updateError.code === "PGRST204") {
+        const { error: legacyUpdateError } = await supabase
+          .from("appointments")
+          .update(appointmentPayload)
+          .eq("id", existing.id);
+        if (legacyUpdateError) throw legacyUpdateError;
+      } else {
+        throw updateError;
+      }
+    }
+  } else {
+    let { error } = await supabase.from("appointments").insert(appointmentPayload);
+
+    if (error?.code === "PGRST204") {
+      const {
+        request_id: _requestId,
+        message: _message,
+        company_name: _companyName,
+        service_address: _serviceAddress,
+        service_city: _serviceCity,
+        service_zip: _serviceZip,
+        ...legacyPayload
+      } = appointmentPayload;
+      ({ error } = await supabase.from("appointments").insert(legacyPayload));
+    }
+
+    if (error) throw error;
   }
-
-  if (error) throw error;
 
   await recordAppointmentProposal({
     requestId: input.request.id,
     appointmentDate: input.appointmentDate,
     appointmentTime: input.appointmentTime,
     message: input.message,
-    kind: "initial",
+    kind: existing?.id ? "counter" : "initial",
   });
 
   try {
@@ -760,6 +827,15 @@ export async function acceptCustomerAppointment(appointmentId: string) {
   if (!data?.request_id) {
     throw new Error("Termín sa nepodarilo prijať.");
   }
+
+  const { error: rejectOthersError } = await supabase
+    .from("appointments")
+    .update({ status: "rejected" })
+    .eq("request_id", data.request_id)
+    .neq("id", appointmentId)
+    .in("status", ["pending", "accepted"]);
+
+  if (rejectOthersError) throw rejectOthersError;
 
   let { error: requestError } = await supabase
     .from("requests")

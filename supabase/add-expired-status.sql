@@ -1,5 +1,5 @@
--- Run in Supabase SQL Editor to auto-purge stale cancelled requests.
--- Extends status check so cancelled dopyty can be moved to "expired".
+-- Run in Supabase SQL Editor to support nightly expiration of unanswered inquiries.
+-- Extends status check so unanswered dopyty can be moved to "expired".
 
 alter table public.requests drop constraint if exists requests_status_check;
 

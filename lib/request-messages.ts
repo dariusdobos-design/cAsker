@@ -154,3 +154,20 @@ export async function countUnreadRequestMessagesForService(requestIds: string[])
 
   return counts;
 }
+
+export function subscribeToRequestMessageChanges(onChange: () => void) {
+  const channel = supabase
+    .channel("request-messages-live")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "request_messages" },
+      () => {
+        onChange();
+      },
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}

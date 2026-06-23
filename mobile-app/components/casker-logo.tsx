@@ -1,11 +1,19 @@
 import { Text, View } from "react-native";
 import { CarWrenchIcon } from "@/components/state-icons";
 
-/** Zodpovedá `.casker-logo` v dashboarde, mierne zväčšené pre mobil. */
-const LOGO_FONT_SIZE = 28;
-const ICON_SIZE = Math.round(LOGO_FONT_SIZE * 1.45);
+const LOGO_SIZES = {
+  default: 28,
+  splash: 44,
+} as const;
 
-export function CaskerLogo() {
+type CaskerLogoProps = {
+  size?: keyof typeof LOGO_SIZES;
+};
+
+export function CaskerLogo({ size = "default" }: CaskerLogoProps) {
+  const logoFontSize = LOGO_SIZES[size];
+  const iconSize = Math.round(logoFontSize * 1.45);
+
   return (
     <View
       className="flex-row items-center"
@@ -15,22 +23,22 @@ export function CaskerLogo() {
       <Text
         className="font-black text-white"
         style={{
-          fontSize: LOGO_FONT_SIZE,
-          letterSpacing: LOGO_FONT_SIZE * 0.025,
-          lineHeight: LOGO_FONT_SIZE,
+          fontSize: logoFontSize,
+          letterSpacing: logoFontSize * 0.025,
+          lineHeight: logoFontSize,
         }}
       >
         c
       </Text>
-      <View style={{ marginHorizontal: -LOGO_FONT_SIZE * 0.04 }}>
-        <CarWrenchIcon size={ICON_SIZE} color="#ffffff" />
+      <View style={{ marginHorizontal: -logoFontSize * 0.04 }}>
+        <CarWrenchIcon size={iconSize} color="#ffffff" />
       </View>
       <Text
         className="font-black text-white"
         style={{
-          fontSize: LOGO_FONT_SIZE,
-          letterSpacing: LOGO_FONT_SIZE * 0.025,
-          lineHeight: LOGO_FONT_SIZE,
+          fontSize: logoFontSize,
+          letterSpacing: logoFontSize * 0.025,
+          lineHeight: logoFontSize,
         }}
       >
         sker

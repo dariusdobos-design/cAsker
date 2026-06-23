@@ -6,7 +6,7 @@
 .casker-request-card-wrap.has-reschedule-notification .casker-request-card {
   border: 2px solid #dc2626;
   padding: calc(0.75rem - 1px);
-  background: linear-gradient(145deg, #eceff3 0%, #d5dde6 52%, #bcc8d4 100%);
+  background: linear-gradient(160deg, #1c2a6e 0%, #14204f 55%, #101739 100%);
 }
 
 .casker-request-card-wrap.has-reschedule-notification .casker-request-card:hover {
@@ -35,7 +35,7 @@
 .casker-request-card-wrap.has-accepted-notification .casker-request-card {
   border: 2px solid #16a34a;
   padding: calc(0.75rem - 1px);
-  background: linear-gradient(145deg, #ecfdf3 0%, #d1fae5 52%, #bbf7d0 100%);
+  background: linear-gradient(160deg, #133a63 0%, #0d2a55 55%, #091c41 100%);
 }
 
 .casker-request-card-wrap.has-accepted-notification .casker-request-card:hover {
@@ -55,7 +55,7 @@
 .casker-request-card-wrap.has-inquiry-notification .casker-request-card {
   border: 2px solid #6c9cbd;
   padding: calc(0.75rem - 1px);
-  background: linear-gradient(145deg, #f0f7fc 0%, #dbeaf5 52%, #c5dff0 100%);
+  background: linear-gradient(160deg, #1a347e 0%, #10245f 55%, #0a1846 100%);
 }
 
 .casker-request-card-wrap.has-inquiry-notification .casker-request-card:hover {
@@ -65,4 +65,43 @@
 .casker-request-card-wrap.has-inquiry-notification .casker-request-card.is-selected {
   border: 2px solid #6c9cbd;
   padding: calc(0.75rem - 1px);
+}
+
+.casker-request-chat-notification {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  pointer-events: none;
+}
+
+.casker-request-chat-notification-icon {
+  width: 1.375rem;
+  height: 1.375rem;
+  color: #0b194f;
+}
+
+.casker-request-chat-notification-badge {
+  position: absolute;
+  top: -0.125rem;
+  right: -0.125rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  border: 2px solid #ffffff;
+  border-radius: 9999px;
+  background: #dc2626;
+  font-size: 0.625rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
 }

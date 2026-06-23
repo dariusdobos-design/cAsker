@@ -40,3 +40,5 @@ create policy "Allow anon update request messages read state"
   to anon
   using (true)
   with check (true);
+
+alter publication supabase_realtime add table public.request_messages;

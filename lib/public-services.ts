@@ -72,6 +72,11 @@ function spreadDuplicateCoordinates(
 }
 
 export async function fetchPublicMapServices(): Promise<PublicMapService[]> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.warn("[public-services] Missing Supabase env vars, returning no map services.");
+    return [];
+  }
+
   const { data, error } = await supabase
     .from("companies")
     .select(

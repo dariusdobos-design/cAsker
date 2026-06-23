@@ -1,5 +1,7 @@
 import { supabase } from "./supabase";
 import { sendCustomerCompletionNotification } from "./customer-notifications";
+import { maybeExpireUnansweredInquiries } from "./expire-unanswered-inquiries";
+import { normalizeInquiryPhotos } from "./inquiry-photos";
 
 export type DashboardState =
   | "inquiry"
@@ -8,6 +10,8 @@ export type DashboardState =
   | "completed"
   | "cancelled"
   | "expired";
+
+export type RequestCancelReason = "customer" | "no_service_accepted";
 
 export type ActiveDashboardState = "inquiry" | "waiting" | "done";
 
@@ -40,6 +44,7 @@ export type Request = {
   mileageKm: number;
   transmission: string;
   inquiryDescription: string;
+  inquiryPhotos?: string[];
   userName: string;
   phone: string;
   createdAt: string;
@@ -50,6 +55,9 @@ export type Request = {
   statusBeforeCancel?: RestorableRequestStatus | null;
   completedWork?: string | null;
   vehiclePickupNote?: string | null;
+  customerPickupConfirmedAt?: string | null;
+  targetCompanyId?: string | null;
+  cancelReason?: RequestCancelReason | null;
 };
 
 type RequestRow = {
@@ -75,6 +83,7 @@ type RequestRow = {
   mileage_km: number;
   transmission: string;
   inquiry_description: string;
+  inquiry_photos?: string[] | null;
   user_name: string;
   phone: string;
   created_at?: string;
@@ -85,6 +94,9 @@ type RequestRow = {
   status_before_cancel?: RestorableRequestStatus | null;
   completed_work?: string | null;
   vehicle_pickup_note?: string | null;
+  customer_pickup_confirmed_at?: string | null;
+  target_company_id?: string | null;
+  cancel_reason?: RequestCancelReason | null;
 };
 
 function normalizeVehicleCategory(value?: VehicleCategory | null): VehicleCategory {
@@ -342,6 +354,7 @@ function mapRequestRow(row: RequestRow): Request {
     mileageKm: row.mileage_km,
     transmission: row.transmission,
     inquiryDescription: row.inquiry_description,
+    inquiryPhotos: normalizeInquiryPhotos(row.inquiry_photos),
     userName: row.user_name,
     phone: row.phone,
     createdAt: row.created_at ?? buildFallbackCreatedAt(row.id),
@@ -352,6 +365,9 @@ function mapRequestRow(row: RequestRow): Request {
     statusBeforeCancel: row.status_before_cancel ?? null,
     completedWork: row.completed_work ?? null,
     vehiclePickupNote: row.vehicle_pickup_note ?? null,
+    customerPickupConfirmedAt: row.customer_pickup_confirmed_at ?? null,
+    targetCompanyId: row.target_company_id ?? null,
+    cancelReason: row.cancel_reason ?? null,
   };
 }
 
@@ -379,6 +395,7 @@ function requestToRow(request: Request, updatedAt?: string) {
     mileage_km: request.mileageKm,
     transmission: request.transmission,
     inquiry_description: request.inquiryDescription,
+    inquiry_photos: normalizeInquiryPhotos(request.inquiryPhotos),
     user_name: request.userName,
     phone: request.phone,
     ...(request.statusBeforeCancel
@@ -388,6 +405,8 @@ function requestToRow(request: Request, updatedAt?: string) {
     ...(request.vehiclePickupNote
       ? { vehicle_pickup_note: request.vehiclePickupNote }
       : {}),
+    ...(request.targetCompanyId ? { target_company_id: request.targetCompanyId } : {}),
+    ...(request.cancelReason ? { cancel_reason: request.cancelReason } : {}),
     ...(updatedAt ? { updated_at: updatedAt } : {}),
   };
 }
@@ -412,7 +431,7 @@ export async function upsertRequests(requests: Request[]) {
 }
 
 const REQUEST_SELECT_FIELDS =
-  "id, status, request_category, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at, reschedule_requested_at, customer_accepted_at, service_accepted_seen_at, service_inquiry_seen_at, status_before_cancel";
+  "id, status, request_category, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, inquiry_photos, user_name, phone, created_at, reschedule_requested_at, customer_accepted_at, service_accepted_seen_at, service_inquiry_seen_at, status_before_cancel, completed_work, vehicle_pickup_note, customer_pickup_confirmed_at, target_company_id, cancel_reason";
 
 const REQUEST_SELECT_FIELDS_LEGACY =
   "id, status, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at";
@@ -463,11 +482,23 @@ export async function fetchRequestsByIds(requestIds: string[]) {
     return ((fallback.data ?? []) as RequestRow[]).map(mapRequestRow);
   }
 
-  if (error) throw error;
+  if (error) {
+    const fallback = await supabase
+      .from("requests")
+      .select(REQUEST_SELECT_FIELDS_LEGACY)
+      .in("id", ids)
+      .order("created_at", { ascending: false });
+    if (!fallback.error) {
+      return ((fallback.data ?? []) as RequestRow[]).map(mapRequestRow);
+    }
+    throw error;
+  }
   return ((data ?? []) as RequestRow[]).map(mapRequestRow);
 }
 
 export async function fetchRequests(options?: { allowFallback?: boolean }) {
+  await maybeExpireUnansweredInquiries();
+
   const { data, error } = await supabase
     .from("requests")
     .select(REQUEST_SELECT_FIELDS)
@@ -498,23 +529,9 @@ export async function fetchRequests(options?: { allowFallback?: boolean }) {
   }
 
   const fromDb = ((data ?? []) as RequestRow[]).map(mapRequestRow);
-  const knownIds = new Set(fromDb.map((request) => request.id));
-  const missingFallback = FALLBACK_REQUESTS.filter(
-    (request) => !knownIds.has(request.id),
-  );
-
-  if (missingFallback.length > 0) {
-    try {
-      await upsertRequests(missingFallback);
-    } catch (syncError) {
-      console.warn("Nepodarilo sa synchronizovať demo dopyty do DB:", syncError);
-    }
-  }
 
   return sortRequestsByCreatedAt(
-    [...fromDb, ...missingFallback].filter(
-      (request) => !isArchivedRequestStatus(request.status),
-    ),
+    fromDb.filter((request) => !isArchivedRequestStatus(request.status)),
   );
 }
 
@@ -610,15 +627,20 @@ export function getActiveStateLabel(status: RestorableRequestStatus) {
   }
 }
 
-export async function cancelRequest(request: Request) {
+export async function cancelRequest(
+  request: Request,
+  options?: { reason?: RequestCancelReason },
+) {
   const statusBeforeCancel = getRestorableStatus(request);
   const updatedAt = new Date().toISOString();
+  const cancelReason = options?.reason ?? "customer";
 
   const { error: updateError } = await supabase
     .from("requests")
     .update({
       status: "cancelled",
       status_before_cancel: statusBeforeCancel,
+      cancel_reason: cancelReason,
       updated_at: updatedAt,
     })
     .eq("id", request.id);
@@ -647,9 +669,24 @@ export async function cancelRequest(request: Request) {
       ...request,
       status: "cancelled",
       statusBeforeCancel,
+      cancelReason,
     },
     updatedAt,
   );
+
+  const { data: rechecked, error: recheckError } = await supabase
+    .from("requests")
+    .select("status")
+    .eq("id", request.id)
+    .maybeSingle();
+
+  if (recheckError) throw recheckError;
+
+  if (rechecked?.status !== "cancelled") {
+    throw new Error(
+      "Dopyt sa nepodarilo označiť ako zrušený. Spustite migráciu supabase/add-cancelled-status.sql.",
+    );
+  }
 }
 
 export async function restoreRequest(request: CancelledRequest) {
@@ -761,6 +798,26 @@ export async function acknowledgeInquiry(requestId: string) {
     .eq("status", "inquiry");
 
   if (error?.code === "PGRST204") return;
+  if (error) throw error;
+}
+
+export async function confirmCustomerPickup(requestId: string) {
+  const timestamp = new Date().toISOString();
+  const { error } = await supabase
+    .from("requests")
+    .update({
+      customer_pickup_confirmed_at: timestamp,
+      updated_at: timestamp,
+    })
+    .eq("id", requestId)
+    .eq("status", "completed");
+
+  if (error?.code === "PGRST204") {
+    throw new Error(
+      "Potvrdenie prevzatia nie je v databáze pripravené. Spustite supabase/add-customer-pickup-confirmed.sql.",
+    );
+  }
+
   if (error) throw error;
 }
 
@@ -904,53 +961,6 @@ export async function isCancelledRequestRestorable(request: CancelledRequest) {
   );
 }
 
-export async function purgeStaleCancelledRequest(
-  request: CancelledRequest,
-): Promise<boolean> {
-  if (await isCancelledRequestRestorable(request)) return false;
-
-  const { error } = await supabase
-    .from("requests")
-    .update({
-      status: "expired",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", request.id)
-    .eq("status", "cancelled");
-
-  if (error) {
-    if (error.code === "PGRST204" || error.message.includes("expired")) {
-      throw new Error(
-        "Chýba stav expired pre odstránenie neaktuálnych dopytov. Spustite migráciu supabase/add-expired-status.sql.",
-      );
-    }
-    throw error;
-  }
-
-  return true;
-}
-
-export async function syncCancelledRequests() {
-  const cancelled = await fetchCancelledRequests();
-  const kept: CancelledRequest[] = [];
-
-  for (const request of cancelled) {
-    try {
-      const purged = await purgeStaleCancelledRequest(request);
-      if (!purged) kept.push(request);
-    } catch (error) {
-      console.warn(
-        "Neaktuálny zrušený dopyt sa nepodarilo odstrániť:",
-        request.id,
-        error,
-      );
-      kept.push(request);
-    }
-  }
-
-  return kept;
-}
-
 export function toHistoryDateKey(isoDate: string) {
   const parsed = new Date(isoDate);
   if (Number.isNaN(parsed.getTime())) return isoDate.slice(0, 10);
@@ -999,16 +1009,35 @@ export function groupCancelledRequestsByDate(requests: CancelledRequest[]) {
 }
 
 export async function fetchCancelledRequests() {
-  const { data, error } = await supabase
+  const selectFields =
+    "id, status, request_category, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at, updated_at, status_before_cancel";
+
+  let { data, error } = await supabase
     .from("requests")
-    .select(
-      "id, status, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at, updated_at, status_before_cancel",
-    )
+    .select(selectFields)
     .eq("status", "cancelled")
     .order("updated_at", { ascending: false });
 
-  if (error) {
-    if (error.code === "PGRST205" || error.code === "PGRST204") return [];
+  if (error?.code === "PGRST204") {
+    const fallback = await supabase
+      .from("requests")
+      .select(
+        "id, status, vehicle_category, vehicle_name, vehicle_title, service, license_plate, distance_km, location_city, vin, engine_volume, power, fuel_type, year, engine, drive, body_type, doors, mileage_km, transmission, inquiry_description, user_name, phone, created_at, updated_at",
+      )
+      .eq("status", "cancelled")
+      .order("updated_at", { ascending: false });
+
+    if (fallback.error) {
+      if (fallback.error.code === "PGRST205" || fallback.error.code === "PGRST204") {
+        return [];
+      }
+      throw fallback.error;
+    }
+
+    data = fallback.data;
+    error = null;
+  } else if (error) {
+    if (error.code === "PGRST205") return [];
     throw error;
   }
 

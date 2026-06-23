@@ -10,6 +10,7 @@ export type DriverVehicle = {
   engineVolume: string;
   transmission: string;
   vin: string;
+  color?: string;
 };
 
 export const DRIVER_VEHICLES: DriverVehicle[] = [

@@ -312,19 +312,6 @@
   flex-shrink: 0;
 }
 
-.casker-calendar-week-empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem;
-  font-size: 0.6875rem;
-  color: #94a3b8;
-  text-align: center;
-  pointer-events: none;
-}
-
 .casker-calendar-event {
   display: flex;
   width: 100%;
